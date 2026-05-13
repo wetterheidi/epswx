@@ -93,6 +93,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(24
 .dot.ok{background:var(--success)}
 .dot.loading{background:var(--warning);animation:blink 1s ease-in-out infinite}
 .dot.error{background:var(--lifr)}
+.dot.warn{background:var(--warning)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* ── Main ── */
@@ -331,9 +332,14 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(24
         <option value="icon_seamless">ICON-EPS (seamless, ≤7d)</option>
         <option value="icon_eu">ICON-EU-EPS (≤5d)</option>
         <option value="icon_d2_eps">ICON-D2-EPS (≤2d, hochauflösend)</option>
-        <option value="ecmwf_ifs025">ECMWF ENS 0.25° (≤10d)</option>
-        <option value="gfs025">GFS-ENS (≤16d)</option>
+        <option value="meteoswiss_icon_ch1_ensemble">ICON CH1-EPS MeteoSwiss (≤5d)</option>
+        <option value="meteoswiss_icon_ch2_ensemble">ICON CH2-EPS MeteoSwiss (≤5d)</option>
+        <option value="ecmwf_ifs025">ECMWF IFS ENS 0.25° (≤10d)</option>
+        <option value="ecmwf_aifs025">ECMWF AIFS ENS 0.25° (≤15d)</option>
+        <option value="ncep_gefs_seamless">GFS-ENS (seamless, ≤16d)</option>
         <option value="gem_global">GEPS Kanada (≤16d)</option>
+        <option value="ukmo_global_ensemble_20km">UK MetOffice Global 20km (≤7d)</option>
+        <option value="ukmo_uk_ensemble_2km">UK MetOffice UK 2km (≤5d)</option>
       </select>
       <button class="btn btn-cmp" onclick="toggleCompare()" title="Modellvergleich aktivieren" style="white-space:nowrap;padding:5px 10px;font-size:12px">⇄ Vergleich</button>
     </div>
@@ -341,11 +347,17 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(24
   <div class="ig" id="in-model2-wrap">
     <label>Vergleichsmodell <span class="cmp-badge cmp-m2">M2</span></label>
     <select id="in-model2">
-      <option value="ecmwf_ifs025">ECMWF ENS 0.25°</option>
+      <option value="ecmwf_ifs025">ECMWF IFS ENS 0.25°</option>
+      <option value="ecmwf_aifs025">ECMWF AIFS ENS 0.25°</option>
       <option value="icon_seamless">ICON-EPS (seamless)</option>
       <option value="icon_eu">ICON-EU-EPS</option>
-      <option value="gfs025">GFS-ENS</option>
+      <option value="icon_d2_eps">ICON-D2-EPS</option>
+      <option value="meteoswiss_icon_ch1_ensemble">ICON CH1-EPS MeteoSwiss</option>
+      <option value="meteoswiss_icon_ch2_ensemble">ICON CH2-EPS MeteoSwiss</option>
+      <option value="ncep_gefs_seamless">GFS-ENS (seamless)</option>
       <option value="gem_global">GEPS Kanada</option>
+      <option value="ukmo_global_ensemble_20km">UK MetOffice Global 20km</option>
+      <option value="ukmo_uk_ensemble_2km">UK MetOffice UK 2km</option>
     </select>
   </div>
 
@@ -1054,6 +1066,22 @@ function fmtVal(v, unit){
 }
 
 // ─────────────────────────────────────────────────────────────
+// MODEL DOMAINS (nur Regionalmodelle; globale Modelle = kein Eintrag)
+// ─────────────────────────────────────────────────────────────
+const MODEL_DOMAIN = {
+  icon_eu:                      {latMin:29, latMax:70,  lonMin:-24, lonMax:45},
+  icon_d2_eps:                  {latMin:43, latMax:58,  lonMin:-1,  lonMax:20},
+  meteoswiss_icon_ch1_ensemble: {latMin:43, latMax:49,  lonMin:4,   lonMax:13},
+  meteoswiss_icon_ch2_ensemble: {latMin:43, latMax:49,  lonMin:4,   lonMax:13},
+  ukmo_uk_ensemble_2km:         {latMin:47, latMax:63,  lonMin:-11, lonMax:4 },
+};
+function inModelDomain(model,lat,lon){
+  const d=MODEL_DOMAIN[model];
+  if(!d) return true;
+  return lat>=d.latMin&&lat<=d.latMax&&lon>=d.lonMin&&lon<=d.lonMax;
+}
+
+// ─────────────────────────────────────────────────────────────
 // DATA PROCESSING
 // ─────────────────────────────────────────────────────────────
 function extractMembers(hourly, varName){
@@ -1267,6 +1295,13 @@ async function onFetch(){
     const loc=await resolveLocation(q);
     S.loc=loc;
 
+    if(!inModelDomain(model, loc.lat, loc.lon)){
+      const modelName=document.getElementById('in-model').selectedOptions[0].text;
+      setStatus('warn',`⚠ ${modelName} deckt diesen Standort nicht ab — außerhalb des Modellgebiets.`);
+      btn.disabled=false; btn.textContent='Abrufen';
+      return;
+    }
+
     const key=cacheKey(loc.lat,loc.lon,model,days);
     let data=cacheGet(key);
     let fromCache=false;
@@ -1294,6 +1329,7 @@ async function onFetch(){
     });
 
     const nM=Object.values(S.members)[0]?.length??0;
+    if(nM===0) throw new Error('Modell liefert keine Ensemble-Daten für diesen Standort (außerhalb des Modellgebiets?)');
     const modelLbl=document.getElementById('in-model').selectedOptions[0].text;
     const cacheNote= fromCache ? ` · 📦 Cache (TTL ${CACHE_TTL_MIN} min)` : '';
     setStatus('ok',`${loc.name} · ${loc.lat.toFixed(3)}°N ${loc.lon.toFixed(3)}°E · ${modelLbl} · ${nM} Member · ${S.labels.length} Zeitschritte · ${S.tz}${cacheNote}`);
@@ -2654,6 +2690,11 @@ async function fetchCompare(){
   const days=+selOpt.value;
   const limitHours=selOpt.dataset.hours ? +selOpt.dataset.hours : null;
 
+  if(!inModelDomain(model2, S.loc.lat, S.loc.lon)){
+    const m2name=document.getElementById('in-model2').selectedOptions[0].text;
+    setStatus('warn',`⚠ Vergleichsmodell ${m2name} deckt diesen Standort nicht ab.`);
+    return;
+  }
   setStatus('loading',`Vergleichsmodell wird abgerufen … (${model2})`);
   try {
     const key=cacheKey(S.loc.lat,S.loc.lon,model2,days)+'_cmp';
