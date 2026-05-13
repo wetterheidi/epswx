@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPS Variable Availability Check</title>
+<style>
+:root {
+  --bg:#f3f2ee;--surface:#fff;--border:rgba(0,0,0,.10);--border2:rgba(0,0,0,.18);
+  --text:#1c1c1a;--muted:#6a6a64;--accent:#185FA5;
+  --ok:#3B6D11;--warn:#BA7517;--err:#A32D2D;--null:#888780;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#1a1a18;--surface:#242422;--border:rgba(255,255,255,.09);
+    --border2:rgba(255,255,255,.18);--text:#e6e4dc;--muted:#8a8a82}
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);
+  font-size:13px;padding:20px}
+h1{font-size:16px;font-weight:600;margin-bottom:4px}
+.sub{font-size:12px;color:var(--muted);margin-bottom:16px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px}
+.ig{display:flex;flex-direction:column;gap:3px}
+label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+input,select{font-size:13px;padding:5px 9px;border-radius:8px;border:0.5px solid var(--border2);
+  background:var(--bg);color:var(--text);font-family:inherit}
+.btn{padding:6px 16px;border-radius:8px;border:0.5px solid var(--border2);cursor:pointer;
+  font-size:13px;font-weight:500;font-family:inherit;background:var(--accent);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.status{font-size:12px;color:var(--muted);margin-bottom:12px;min-height:18px}
+
+/* Results grid */
+.section{margin-bottom:20px}
+.section h2{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);margin-bottom:8px;padding-bottom:4px;border-bottom:0.5px solid var(--border2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px}
+.vcard{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:8px;
+  padding:8px 10px;display:flex;flex-direction:column;gap:3px;
+}
+.vcard.ok   {border-left:3px solid var(--ok)}
+.vcard.null {border-left:3px solid var(--null);opacity:.7}
+.vcard.miss {border-left:3px solid var(--err);opacity:.6}
+.vname{font-weight:600;font-size:12px}
+.vdetail{font-size:11px;color:var(--muted)}
+.badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:99px;font-weight:500;margin-top:2px}
+.badge.ok  {background:rgba(59,109,17,.15);color:var(--ok)}
+.badge.null{background:rgba(136,135,128,.15);color:var(--null)}
+.badge.miss{background:rgba(163,45,45,.15);color:var(--err)}
+
+.legend{display:flex;gap:16px;margin-bottom:12px;font-size:11px;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:5px}
+.lb{width:10px;height:10px;border-radius:2px}
+</style>
+</head>
+<body>
+
+<h1>EPS Variable Availability Check</h1>
+<div class="sub">Prüft welche Variablen im gewählten Modell tatsächlich Ensemble-Member-Daten liefern (kein null, mindestens 1 Wert vorhanden)</div>
+
+<div class="controls">
+  <div class="ig">
+    <label>Station (ICAO / lat,lon)</label>
+    <input id="in-loc" value="EDDF" style="width:160px">
+  </div>
+  <div class="ig">
+    <label>Modell</label>
+    <select id="in-model">
+      <option value="icon_seamless">ICON-EPS seamless</option>
+      <option value="icon_eu">ICON-EU-EPS</option>
+      <option value="icon_d2">ICON-D2-EPS</option>
+      <option value="ecmwf_ifs04">ECMWF ENS 0.4°</option>
+      <option value="ecmwf_ifs025">ECMWF ENS 0.25°</option>
+      <option value="gfs025">GFS-ENS 0.25°</option>
+      <option value="gem_global">GEPS Kanada</option>
+    </select>
+  </div>
+  <button class="btn" id="btn" onclick="runCheck()">Verfügbarkeit prüfen</button>
+</div>
+
+<div class="status" id="status">—</div>
+
+<div class="legend" id="legend" style="display:none">
+  <div class="li"><div class="lb" style="background:var(--ok)"></div>Member-Daten vorhanden (≥1 non-null)</div>
+  <div class="li"><div class="lb" style="background:var(--null)"></div>Variable vorhanden, aber alle Werte null</div>
+  <div class="li"><div class="lb" style="background:var(--err)"></div>Variable nicht in API-Antwort</div>
+</div>
+
+<div id="results"></div>
+
+<script>
+// Airport lookup (subset)
+const AP = {
+  EDDF:{lat:50.033,lon:8.571},EDDM:{lat:48.354,lon:11.786},LOWW:{lat:48.120,lon:16.570},
+  LSZH:{lat:47.464,lon:8.549},LOWI:{lat:47.260,lon:11.344},LOWS:{lat:47.793,lon:13.004},
+  LSGG:{lat:46.238,lon:6.109},EGLL:{lat:51.477,lon:-0.461},EHAM:{lat:52.309,lon:4.764},
+  LFPG:{lat:49.013,lon:2.550},LIRF:{lat:41.800,lon:12.239},EKCH:{lat:55.618,lon:12.656},
+  CYYR:{lat:53.319,lon:-60.426},
+};
+
+// All variables to test, grouped
+const GROUPS = [
+  {
+    name: 'Standard-Oberfläche',
+    vars: [
+      'temperature_2m','relative_humidity_2m','dew_point_2m','apparent_temperature',
+      'precipitation','rain','snowfall','snow_depth','weather_code',
+      'pressure_msl','surface_pressure',
+    ]
+  },
+  {
+    name: 'Bewölkung & Sicht',
+    vars: [
+      'cloud_cover','cloudcover_low','cloudcover_mid','cloudcover_high','visibility',
+    ]
+  },
+  {
+    name: 'Wind',
+    vars: [
+      'windspeed_10m','windspeed_80m','windspeed_100m','windspeed_120m',
+      'winddirection_10m','winddirection_80m','winddirection_100m','winddirection_120m',
+      'windgusts_10m',
+      'temperature_80m','temperature_120m',
+    ]
+  },
+  {
+    name: 'Additional Variables',
+    vars: [
+      'cape','convective_inhibition',
+      'freezinglevel_height','snowfall_height',
+      'wet_bulb_temperature_2m',
+      'uv_index','is_day',
+      'sunshine_duration',
+      'vapour_pressure_deficit',
+    ]
+  },
+  {
+    name: 'Druckflächen — Temperatur',
+    vars: [
+      'temperature_1000hPa','temperature_925hPa','temperature_850hPa',
+      'temperature_700hPa','temperature_500hPa','temperature_300hPa',
+    ]
+  },
+  {
+    name: 'Druckflächen — Relative Feuchte',
+    vars: [
+      'relative_humidity_1000hPa','relative_humidity_925hPa','relative_humidity_850hPa',
+      'relative_humidity_700hPa','relative_humidity_500hPa',
+    ]
+  },
+  {
+    name: 'Druckflächen — Taupunkt',
+    vars: [
+      'dew_point_1000hPa','dew_point_925hPa','dew_point_850hPa',
+      'dew_point_700hPa','dew_point_500hPa',
+    ]
+  },
+  {
+    name: 'Druckflächen — Bewölkung',
+    vars: [
+      'cloud_cover_1000hPa','cloud_cover_925hPa','cloud_cover_850hPa',
+      'cloud_cover_700hPa','cloud_cover_500hPa',
+    ]
+  },
+  {
+    name: 'Druckflächen — Wind',
+    vars: [
+      'wind_speed_850hPa','wind_speed_700hPa','wind_speed_500hPa',
+      'wind_direction_850hPa','wind_direction_700hPa',
+    ]
+  },
+  {
+    name: 'Druckflächen — Geopotential',
+    vars: [
+      'geopotential_height_850hPa','geopotential_height_700hPa','geopotential_height_500hPa',
+    ]
+  },
+  {
+    name: 'Druckflächen — Vertikalwind',
+    vars: [
+      'vertical_velocity_850hPa','vertical_velocity_700hPa','vertical_velocity_500hPa',
+    ]
+  },
+];
+
+async function resolveLocation(q){
+  const u=q.trim().toUpperCase();
+  if(AP[u]) return AP[u];
+  const m=q.match(/^(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)$/);
+  if(m) return {lat:+m[1],lon:+m[2]};
+  const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1`);
+  const d=await r.json();
+  if(d.results?.length) return {lat:d.results[0].latitude,lon:d.results[0].longitude};
+  throw new Error(`Ort nicht gefunden: "${q}"`);
+}
+
+function hasData(hourly, varName){
+  // Check if any member key for this variable has at least one non-null value
+  let i=1, found=false;
+  while(true){
+    const k=`${varName}_member${String(i).padStart(2,'0')}`;
+    if(!(k in hourly)) break;
+    if(hourly[k].some(v=>v!==null&&isFinite(v))) { found=true; break; }
+    i++;
+  }
+  if(found) return {status:'ok', members:i-1};
+  // Check if key exists at all (all null)
+  const k1=`${varName}_member01`;
+  if(k1 in hourly){
+    let n=1;
+    while(`${varName}_member${String(n+1).padStart(2,'0')}` in hourly) n++;
+    return {status:'null', members:n};
+  }
+  return {status:'miss', members:0};
+}
+
+async function runCheck(){
+  const btn=document.getElementById('btn');
+  btn.disabled=true;
+  document.getElementById('results').innerHTML='';
+  document.getElementById('legend').style.display='none';
+
+  const q=document.getElementById('in-loc').value.trim();
+  const model=document.getElementById('in-model').value;
+
+  function setStatus(s){ document.getElementById('status').textContent=s; }
+
+  try {
+    setStatus('Standort wird aufgelöst …');
+    const {lat,lon}=await resolveLocation(q);
+
+    // Collect all vars
+    const allVars=GROUPS.flatMap(g=>g.vars);
+    const varStr=allVars.join(',');
+
+    setStatus(`Abrufen: ${model} für ${lat.toFixed(3)}, ${lon.toFixed(3)} … (kann einen Moment dauern)`);
+
+    const url=`https://ensemble-api.open-meteo.com/v1/ensemble`
+      +`?latitude=${lat}&longitude=${lon}&models=${model}`
+      +`&hourly=${varStr}&forecast_days=1&timezone=auto`;
+
+    const r=await fetch(url);
+    if(!r.ok){
+      const e=await r.json().catch(()=>({}));
+      throw new Error(e.reason||`HTTP ${r.status}`);
+    }
+    const data=await r.json();
+    const hr=data.hourly;
+
+    // Build results
+    let okCount=0, nullCount=0, missCount=0;
+    const sections=GROUPS.map(grp=>{
+      const cards=grp.vars.map(v=>{
+        const res=hasData(hr,v);
+        if(res.status==='ok')   okCount++;
+        if(res.status==='null') nullCount++;
+        if(res.status==='miss') missCount++;
+        return {name:v, ...res};
+      });
+      return {name:grp.name, cards};
+    });
+
+    setStatus(`✓ ${model} · ${lat.toFixed(3)}°N ${lon.toFixed(3)}°E · Ergebnis: ${okCount} verfügbar, ${nullCount} null, ${missCount} nicht vorhanden`);
+    document.getElementById('legend').style.display='flex';
+
+    const out=sections.map(s=>`
+      <div class="section">
+        <h2>${s.name}</h2>
+        <div class="grid">
+          ${s.cards.map(card=>{
+            const detail=card.status==='ok'
+              ? `${card.members} Member, Daten vorhanden`
+              : card.status==='null'
+              ? `${card.members} Member — alle Werte null`
+              : 'Nicht in API-Antwort';
+            return `<div class="vcard ${card.status}">
+              <div class="vname">${card.name}</div>
+              <div class="vdetail">${detail}</div>
+              <span class="badge ${card.status}">${
+                card.status==='ok'?'✓ Verfügbar':
+                card.status==='null'?'○ Null':
+                '✗ Fehlt'
+              }</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    `).join('');
+    document.getElementById('results').innerHTML=out;
+
+  } catch(e){
+    setStatus(`Fehler: ${e.message}`);
+  }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>

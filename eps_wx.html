@@ -1,0 +1,3616 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPS Aviation Wx</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:       #f3f2ee;
+  --surface:  #ffffff;
+  --surface2: #f8f7f4;
+  --border:   rgba(0,0,0,0.10);
+  --border2:  rgba(0,0,0,0.18);
+  --text:     #1c1c1a;
+  --muted:    #6a6a64;
+  --accent:   #185FA5;
+  --accent-l: #e8f1fa;
+  --r-md:     8px;
+  --r-lg:     12px;
+  --success:  #3B6D11;
+  --warning:  #BA7517;
+  --danger:   #D85A30;
+  --lifr:     #A32D2D;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:       #1a1a18;
+    --surface:  #242422;
+    --surface2: #1e1e1c;
+    --border:   rgba(255,255,255,0.09);
+    --border2:  rgba(255,255,255,0.18);
+    --text:     #e6e4dc;
+    --muted:    #8a8a82;
+    --accent-l: #0e2a44;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:       #1a1a18;
+  --surface:  #242422;
+  --surface2: #1e1e1c;
+  --border:   rgba(255,255,255,0.09);
+  --border2:  rgba(255,255,255,0.18);
+  --text:     #e6e4dc;
+  --muted:    #8a8a82;
+  --accent-l: #0e2a44;
+}
+:root[data-theme="light"] {
+  --bg:       #f3f2ee;
+  --surface:  #ffffff;
+  --surface2: #f8f7f4;
+  --border:   rgba(0,0,0,0.10);
+  --border2:  rgba(0,0,0,0.18);
+  --text:     #1c1c1a;
+  --muted:    #6a6a64;
+  --accent-l: #e8f1fa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+/* ── Header ── */
+.hdr{
+  background:var(--surface);border-bottom:0.5px solid var(--border2);
+  padding:10px 20px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;
+  position:sticky;top:0;z-index:20;
+}
+.app-name{font-size:14px;font-weight:600;color:var(--accent);white-space:nowrap;padding-bottom:1px}
+.ig{display:flex;flex-direction:column;gap:3px}
+.ig label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:500}
+input,select{
+  font-size:13px;padding:5px 9px;border-radius:var(--r-md);
+  border:0.5px solid var(--border2);background:var(--bg);color:var(--text);outline:none;
+  font-family:inherit;
+}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(24,95,165,.12)}
+.btn{
+  padding:6px 15px;border-radius:var(--r-md);border:0.5px solid var(--border2);
+  cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;
+  background:var(--bg);color:var(--text);transition:background .12s;
+}
+.btn:hover{background:var(--surface2)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{opacity:.9}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Status bar ── */
+.status{
+  background:var(--surface2);border-bottom:0.5px solid var(--border);
+  padding:5px 20px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;
+}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.ok{background:var(--success)}
+.dot.loading{background:var(--warning);animation:blink 1s ease-in-out infinite}
+.dot.error{background:var(--lifr)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Main ── */
+.main{max-width:1140px;margin:0 auto;padding:16px 20px}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px}
+.tab{
+  font-size:12px;font-weight:500;padding:5px 13px;border-radius:99px;
+  border:0.5px solid var(--border2);background:var(--surface);color:var(--muted);cursor:pointer;
+  transition:all .12s;white-space:nowrap;
+}
+.tab:hover{color:var(--text);border-color:var(--accent)}
+.tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tab.disabled{opacity:.38;cursor:not-allowed;pointer-events:none;
+  border-style:dashed;background:var(--bg)}
+.tab.disabled:hover{border-color:var(--border2);color:var(--muted)}
+
+/* ── Stat cards ── */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.scard{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-lg);padding:12px 15px}
+.scard .lbl{font-size:11px;color:var(--muted);margin-bottom:4px}
+.scard .val{font-size:21px;font-weight:600}
+.scard .sub{font-size:11px;color:var(--muted);margin-top:3px}
+
+/* ── Chart panels ── */
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.panel{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-lg);padding:15px}
+.panel.full{grid-column:1/-1}
+.panel .ptitle{font-size:11px;font-weight:500;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em}
+.cwrap{position:relative;height:220px}
+.cwrap canvas{max-height:220px}
+.cwrap-lg{position:relative;height:290px}
+.cwrap-lg canvas{max-height:290px}
+
+/* ── Threshold row ── */
+.trow{display:flex;align-items:center;gap:8px;margin:6px 0 8px;font-size:12px;color:var(--muted)}
+.trow input[type=range]{flex:1;accent-color:var(--accent)}
+.tval{min-width:58px;text-align:right;color:var(--text);font-weight:600;font-size:13px}
+
+/* ── Legend ── */
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.lb{width:10px;height:10px;border-radius:2px}
+.ll{width:20px;height:2px;border-radius:1px}
+
+/* ── Notice ── */
+.notice{
+  background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--r-md);
+  padding:7px 11px;font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;
+}
+
+/* ── Placeholder ── */
+.ph{display:flex;align-items:center;justify-content:center;height:280px;
+  color:var(--muted);font-size:13px;flex-direction:column;gap:10px;
+}
+
+/* ── Config overlay ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none}
+.overlay.open{display:flex;justify-content:flex-end}
+.cpanel{
+  background:var(--surface);width:350px;height:100vh;overflow-y:auto;
+  padding:18px 20px;border-left:0.5px solid var(--border2);
+}
+.cpanel h2{font-size:13px;font-weight:600;margin-bottom:16px}
+.csec{margin-bottom:18px}
+.csec h3{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+  font-weight:600;margin-bottom:8px;padding-bottom:6px;border-bottom:0.5px solid var(--border)}
+.crow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.crow label{flex:1;font-size:12px;color:var(--text)}
+.crow input[type=number]{width:82px;text-align:right}
+.crow .unit{font-size:11px;color:var(--muted);min-width:34px}
+
+/* ── Modellvergleich ── */
+.cmp-active .btn-cmp{background:var(--accent);color:#fff;border-color:var(--accent)}
+#in-model2-wrap{display:none;align-items:flex-end;gap:0}
+#in-model2-wrap.visible{display:flex}
+.cmp-badge{font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;margin-right:4px;white-space:nowrap}
+.cmp-m1{background:rgba(59,139,212,.15);color:#185FA5}
+.cmp-m2{background:rgba(83,74,183,.15);color:#534AB7}
+.cmp-panels{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.cmp-full{grid-column:1/-1}
+
+/* ── Location picker ── */
+.loc-picker{
+  position:absolute;top:100%;left:0;z-index:100;
+  background:var(--surface);border:0.5px solid var(--border2);
+  border-radius:var(--r-lg);box-shadow:0 4px 20px rgba(0,0,0,.15);
+  min-width:340px;max-width:420px;overflow:hidden;margin-top:4px;
+}
+.loc-option{
+  padding:9px 14px;cursor:pointer;border-bottom:0.5px solid var(--border);
+  display:flex;flex-direction:column;gap:2px;
+  transition:background .1s;
+}
+.loc-option:last-child{border-bottom:none}
+.loc-option:hover{background:var(--surface2)}
+.loc-option .lo-name{font-size:13px;font-weight:500;color:var(--text)}
+.loc-option .lo-detail{font-size:11px;color:var(--muted)}
+.loc-header{padding:7px 14px;font-size:10px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--muted);background:var(--surface2);
+  border-bottom:0.5px solid var(--border)}
+
+/* ── Wind combo tab ── */
+.wind-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-bottom:10px;font-size:12px;color:var(--color-text-secondary,var(--muted))}
+.wind-controls label{color:var(--muted);font-size:11px}
+.seg-btn{
+  font-size:11px;font-weight:500;padding:3px 9px;border-radius:var(--r-md);
+  border:0.5px solid var(--border2);background:var(--bg);color:var(--muted);
+  cursor:pointer;font-family:inherit;transition:all .12s;
+}
+.seg-btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.heatmap-wrap{position:relative;height:200px;width:100%;overflow:hidden;cursor:crosshair}
+.rose-wrap{position:relative;width:100%;height:260px}
+
+/* ── Timezone toggle ── */
+.tz-toggle{display:flex;border:0.5px solid var(--border2);border-radius:var(--r-md);overflow:hidden}
+.tz-btn{font-size:11px;font-weight:600;padding:4px 10px;border:none;background:var(--bg);
+  color:var(--muted);cursor:pointer;font-family:inherit;transition:all .12s;letter-spacing:.04em}
+.tz-btn.on{background:var(--accent);color:#fff}
+.tz-btn:hover:not(.on){background:var(--surface2)}
+
+/* ── Direction toggle ── */
+.dir-toggle{display:none;gap:2px}
+.dir-toggle.visible{display:flex}
+.dir-btn{
+  font-size:11px;font-weight:500;padding:3px 9px;border-radius:var(--r-md);
+  border:0.5px solid var(--border2);background:var(--bg);color:var(--muted);
+  cursor:pointer;font-family:inherit;transition:all .12s;white-space:nowrap;
+}
+.dir-btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── Analyse-Panel ── */
+.apanel{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-lg);
+  padding:12px 15px;margin-top:10px;display:none;
+  animation:fadeIn .15s ease;
+}
+.apanel.visible{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.apanel-time{font-size:11px;font-weight:600;color:var(--muted);
+  white-space:nowrap;min-width:80px;text-align:center;padding-right:12px;
+  border-right:0.5px solid var(--border2);}
+.apanel-stats{display:grid;grid-template-columns:repeat(7,1fr);gap:0;flex:1;min-width:340px}
+.astat{text-align:center;padding:4px 6px;border-right:0.5px solid var(--border)}
+.astat:last-child{border-right:none}
+.astat .al{font-size:10px;color:var(--muted);margin-bottom:3px;white-space:nowrap}
+.astat .av{font-size:14px;font-weight:600;color:var(--text)}
+.astat.hi .av{color:var(--danger,#D85A30)}
+/* Percentile column colouring */
+.astat.pct-outer{background:rgba(59,139,212,.07)}   /* P10, P90 */
+.astat.pct-inner{background:rgba(59,139,212,.13)}   /* P25, P75 */
+.astat.pct-med  {background:rgba(59,139,212,.22)}   /* Median   */
+.astat.pct-spread{background:rgba(136,135,128,.08)} /* Spread   */
+/* hi = P(Schwelle) — colour set dynamically */
+.apanel-box{flex-shrink:0}
+.apanel-pin{
+  font-size:10px;padding:2px 7px;border-radius:99px;cursor:pointer;
+  border:0.5px solid var(--border2);background:var(--bg);color:var(--muted);
+  white-space:nowrap;transition:all .12s;user-select:none;margin-left:auto;align-self:flex-start;
+}
+.apanel-pin:hover{border-color:var(--accent);color:var(--accent)}
+.apanel-pin.pinned{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── Zeitfenster-Strip ── */
+.zf-strip{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r-lg);
+  padding:10px 14px;margin-bottom:12px;display:none;
+}
+.zf-strip.visible{display:block}
+.zf-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.zf-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  font-weight:600;white-space:nowrap;margin-right:4px}
+.day-btn{
+  font-size:12px;font-weight:500;padding:4px 11px;border-radius:var(--r-md);
+  border:0.5px solid var(--border2);background:var(--bg);color:var(--muted);cursor:pointer;
+  transition:all .12s;white-space:nowrap;line-height:1.4;text-align:center;
+}
+.day-btn:hover{border-color:var(--accent);color:var(--text)}
+.day-btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.zf-divider{width:0.5px;height:28px;background:var(--border2);margin:0 4px;flex-shrink:0}
+/* Dual-range slider */
+.range-wrap{position:relative;height:20px;flex:1;min-width:160px;margin:0 6px}
+.range-wrap input[type=range]{
+  position:absolute;width:100%;height:20px;top:0;left:0;margin:0;padding:0;
+  -webkit-appearance:none;appearance:none;background:transparent;pointer-events:none;
+}
+.range-wrap input[type=range]::-webkit-slider-runnable-track{height:4px;background:transparent}
+.range-wrap input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;margin-top:-6px;
+  background:var(--accent);border:2px solid var(--surface);
+  box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer;pointer-events:all;
+}
+.range-wrap input[type=range]::-moz-range-track{height:4px;background:transparent}
+.range-wrap input[type=range]::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;border:2px solid var(--surface);
+  background:var(--accent);cursor:pointer;pointer-events:all;
+}
+.range-track{
+  position:absolute;height:4px;top:50%;transform:translateY(-50%);
+  left:0;right:0;border-radius:2px;background:var(--border2);z-index:0;
+}
+.range-fill{
+  position:absolute;height:4px;top:50%;transform:translateY(-50%);
+  border-radius:2px;background:var(--accent);z-index:1;
+}
+.zf-time-lbl{font-size:11px;color:var(--text);min-width:70px;text-align:center;
+  font-weight:500;background:var(--bg);padding:2px 6px;border-radius:4px;
+  border:0.5px solid var(--border)}
+
+/* ── Responsive ── */
+@media(max-width:680px){
+  .panels{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══════════════════════════════════════════════════════════ -->
+<div class="hdr">
+  <span class="app-name">EPS Aviation Wx</span>
+
+  <div class="ig" style="position:relative">
+    <label>Station (ICAO / lat,lon)</label>
+    <input id="in-icao" value="EDMO" placeholder="z.B. EDMO oder 48.08,11.28" style="width:190px"
+           autocomplete="off">
+    <div class="loc-picker" id="loc-picker" style="display:none"></div>
+  </div>
+
+  <div class="ig">
+    <label>Ensemble-Modell</label>
+    <div style="display:flex;gap:6px;align-items:center">
+      <select id="in-model">
+        <option value="icon_seamless">ICON-EPS (seamless, ≤7d)</option>
+        <option value="icon_eu">ICON-EU-EPS (≤5d)</option>
+        <option value="icon_d2">ICON-D2-EPS (≤2d, hochauflösend)</option>
+        <option value="ecmwf_ifs025">ECMWF ENS 0.25° (≤10d)</option>
+        <option value="gfs025">GFS-ENS (≤16d)</option>
+        <option value="gem_global">GEPS Kanada (≤16d)</option>
+      </select>
+      <button class="btn btn-cmp" onclick="toggleCompare()" title="Modellvergleich aktivieren" style="white-space:nowrap;padding:5px 10px;font-size:12px">⇄ Vergleich</button>
+    </div>
+  </div>
+  <div class="ig" id="in-model2-wrap">
+    <label>Vergleichsmodell <span class="cmp-badge cmp-m2">M2</span></label>
+    <select id="in-model2">
+      <option value="ecmwf_ifs025">ECMWF ENS 0.25°</option>
+      <option value="icon_seamless">ICON-EPS (seamless)</option>
+      <option value="icon_eu">ICON-EU-EPS</option>
+      <option value="gfs025">GFS-ENS</option>
+      <option value="gem_global">GEPS Kanada</option>
+    </select>
+  </div>
+
+  <div class="ig">
+    <label>Vorhersagehorizont</label>
+    <select id="in-days">
+      <option value="1" data-hours="12">+12 h</option>
+      <option value="1" data-hours="24">+24 h</option>
+      <option value="2">+48 h</option>
+      <option value="3">+72 h</option>
+      <option value="5" selected>+120 h</option>
+      <option value="7">+168 h (7 Tage)</option>
+      <option value="10">+240 h (10 Tage)</option>
+    </select>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-left:auto;align-items:flex-end">
+    <div class="ig">
+      <label>Zeitzone</label>
+      <div class="tz-toggle">
+        <button class="tz-btn on" id="tz-utc" onclick="setTimezone('UTC')">UTC</button>
+        <button class="tz-btn"    id="tz-loc" onclick="setTimezone('LOC')">LOC</button>
+      </div>
+    </div>
+    <button class="btn" id="btn-theme" onclick="toggleTheme()" title="Hell/Dunkel umschalten" style="font-size:15px;padding:5px 10px">🌙</button>
+    <button class="btn" onclick="clearCache()" title="Lokalen Datencache löschen">🗑 Cache</button>
+    <button class="btn" onclick="openCfg()">⚙ Schwellenwerte</button>
+    <button class="btn btn-primary" id="btn-fetch" onclick="onFetch()">Abrufen</button>
+  </div>
+</div>
+
+<!-- ═══ STATUS ════════════════════════════════════════════════════════════ -->
+<div class="status">
+  <div class="dot" id="sdot"></div>
+  <span id="stxt">Station eingeben und Daten abrufen.</span>
+</div>
+
+<!-- ═══ MAIN ══════════════════════════════════════════════════════════════ -->
+<div class="main">
+
+  <div class="tabs" id="tabs">
+    <button class="tab on"  data-t="wind"       onclick="switchTab('wind')">Wind & Richtung</button>
+    <button class="tab"     data-t="gusts"       onclick="switchTab('gusts')">Böen</button>
+    <button class="tab"     data-t="temp"        onclick="switchTab('temp')">Temperatur</button>
+    <button class="tab"     data-t="dewpoint"    onclick="switchTab('dewpoint')">Taupunkt</button>
+    <button class="tab"     data-t="humidity"    onclick="switchTab('humidity')">Rel. Feuchte</button>
+    <button class="tab"     data-t="cloudcover"  onclick="switchTab('cloudcover')">Bewölkung</button>
+    <button class="tab"     data-t="visibility"  onclick="switchTab('visibility')">Sichtweite</button>
+    <button class="tab"     data-t="precip"      onclick="switchTab('precip')">Niederschlag</button>
+    <button class="tab"     data-t="rain"        onclick="switchTab('rain')">Regen</button>
+    <button class="tab"     data-t="snow"        onclick="switchTab('snow')">Schneefall</button>
+    <button class="tab"     data-t="snowdepth"   onclick="switchTab('snowdepth')">Schneehöhe</button>
+    <button class="tab"     data-t="cape"        onclick="switchTab('cape')">Konvektion (CAPE)</button>
+    <button class="tab"     data-t="wc"          onclick="switchTab('wc')">Wetter (TAF)</button>
+  </div>
+
+  <!-- Zeitfenster-Strip -->
+  <div class="zf-strip" id="zf-strip">
+    <div class="zf-row">
+      <span class="zf-lbl">Zeitfenster</span>
+      <button class="day-btn on" id="zf-all" onclick="setView(0,null)">Alle</button>
+      <div class="zf-divider"></div>
+      <div id="zf-days" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+      <div class="zf-divider"></div>
+      <span class="zf-time-lbl" id="zf-from">—</span>
+      <div class="range-wrap" id="range-wrap">
+        <div class="range-track"></div>
+        <div class="range-fill" id="range-fill"></div>
+        <input type="range" id="range-lo" min="0" max="100" value="0"  oninput="onRangeLo(this.value)">
+        <input type="range" id="range-hi" min="0" max="100" value="100" oninput="onRangeHi(this.value)">
+      </div>
+      <span class="zf-time-lbl" id="zf-to">—</span>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stats">
+    <div class="scard"><div class="lbl" id="sc-lbl1">Kenngröße</div><div class="val" id="sc-val1">—</div><div class="sub" id="sc-sub1">–</div></div>
+    <div class="scard"><div class="lbl" id="sc-lbl2">P(Schwelle)</div><div class="val" id="sc-val2">—</div><div class="sub" id="sc-sub2">–</div></div>
+    <div class="scard"><div class="lbl" id="sc-lbl3">Ensemble-Spread (P90–P10)</div><div class="val" id="sc-val3">—</div><div class="sub" id="sc-sub3">max. im Zeitfenster</div></div>
+  </div>
+
+  <!-- Placeholder (before first fetch) -->
+  <div class="ph" id="ph">
+    <div style="font-size:40px">🌤</div>
+    <div>Station auswählen und Daten abrufen</div>
+  </div>
+
+  <!-- Standard tab -->
+  <div id="std-content" style="display:none">
+    <div class="panels" style="margin-bottom:0">
+      <div class="panel" style="margin-bottom:12px">
+        <div class="ptitle">Ensemble-Plume — alle Member</div>
+        <div class="cwrap"><canvas id="c-plume"></canvas></div>
+        <div class="legend">
+          <div class="li"><div class="ll" id="leg-med" style="background:#185FA5;height:2.5px"></div>Median</div>
+          <div class="li"><div class="lb" style="background:rgba(59,139,212,.25);height:8px"></div>P25–P75</div>
+          <div class="li"><div class="lb" style="background:rgba(59,139,212,.1);height:8px"></div>P10–P90</div>
+          <div class="li"><div class="ll" style="border-top:2px dashed rgba(186,117,23,.8);height:0;width:20px"></div>Schwelle</div>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:12px">
+        <div class="ptitle" id="ptitle-prob">Überschreitungswahrscheinlichkeit</div>
+        <div class="trow">
+          <div class="dir-toggle" id="dir-toggle">
+            <button class="dir-btn on" id="dir-btn-below" onclick="setThrDir('below')">≤ Schwelle</button>
+            <button class="dir-btn"    id="dir-btn-above" onclick="setThrDir('above')">≥ Schwelle</button>
+          </div>
+          <span>Schwelle</span>
+          <input type="range" id="thr-slider" min="0" max="100" value="25" oninput="onThrSlide_std(this.value)">
+          <span class="tval" id="thr-disp">25 kt</span>
+        </div>
+        <div class="cwrap"><canvas id="c-prob"></canvas></div>
+        <div class="legend">
+          <div class="li"><div class="lb" style="background:rgba(59,109,17,.8)"></div>&lt; 30 %</div>
+          <div class="li"><div class="lb" style="background:rgba(186,117,23,.8)"></div>30–60 %</div>
+          <div class="li"><div class="lb" style="background:rgba(216,90,48,.8)"></div>&gt; 60 %</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analysis panel — full width below both charts -->
+    <div class="apanel" id="apanel" style="margin-bottom:12px"
+         onmouseenter="if(_hideTimer){clearTimeout(_hideTimer);_hideTimer=null;}"
+         onmouseleave="hideAnalysisPanel()">
+      <div class="apanel-time" id="ap-time">—</div>
+      <div class="apanel-stats">
+        <div class="astat pct-outer"><div class="al">P10</div><div class="av" id="ap-p10">—</div></div>
+        <div class="astat pct-inner"><div class="al">P25</div><div class="av" id="ap-p25">—</div></div>
+        <div class="astat pct-med">  <div class="al">Median</div><div class="av" id="ap-med">—</div></div>
+        <div class="astat pct-inner"><div class="al">P75</div><div class="av" id="ap-p75">—</div></div>
+        <div class="astat pct-outer"><div class="al">P90</div><div class="av" id="ap-p90">—</div></div>
+        <div class="astat pct-spread"><div class="al">Spread</div><div class="av" id="ap-spread">—</div></div>
+        <div class="astat hi"><div class="al" id="ap-plbl">P(Schw.)</div><div class="av" id="ap-prob">—</div></div>
+      </div>
+      <button class="apanel-pin" id="ap-pin" onclick="togglePin()">📌 Anheften</button>
+      <div class="apanel-box">
+        <svg id="ap-box" width="80" height="100" viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+          <text x="40" y="54" text-anchor="middle" font-size="9" fill="var(--muted)">Hover →</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bewölkung tab (special: total always, layers when available) -->
+  <div id="cc-content" style="display:none">
+    <div class="panels" style="margin-bottom:0">
+      <div class="panel" style="margin-bottom:12px">
+        <div class="ptitle">Gesamtbedeckung — Ensemble-Plume</div>
+        <div class="cwrap"><canvas id="c-cc-total-plume"></canvas></div>
+        <div class="legend">
+          <div class="li"><div class="ll" style="background:#888780;height:2.5px"></div>Median</div>
+          <div class="li"><div class="lb" style="background:rgba(136,135,128,.25);height:8px"></div>P25–P75</div>
+          <div class="li"><div class="lb" style="background:rgba(136,135,128,.1);height:8px"></div>P10–P90</div>
+          <div class="li"><div class="ll" style="border-top:2px dashed rgba(186,117,23,.8);height:0;width:20px"></div>Schwelle</div>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:12px">
+        <div class="ptitle">P(Gesamtbedeckung ≥ Schwelle)</div>
+        <div class="trow">
+          <span>Schwelle</span>
+          <input type="range" id="cc-thr-slider" min="0" max="100" value="50" step="5" oninput="onCCThrSlide(this.value)">
+          <span class="tval" id="cc-thr-disp">50 %</span>
+        </div>
+        <div class="cwrap"><canvas id="c-cc-total-prob"></canvas></div>
+        <div class="legend">
+          <div class="li"><div class="lb" style="background:rgba(59,109,17,.8)"></div>&lt; 30 %</div>
+          <div class="li"><div class="lb" style="background:rgba(186,117,23,.8)"></div>30–60 %</div>
+          <div class="li"><div class="lb" style="background:rgba(216,90,48,.8)"></div>&gt; 60 %</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analysis panel for cc tab -->
+    <div class="apanel" id="apanel-cc" style="margin-bottom:12px"
+         onmouseenter="if(_hideTimer){clearTimeout(_hideTimer);_hideTimer=null;}"
+         onmouseleave="hideCCPanel()">
+      <div class="apanel-time" id="ap-cc-time">—</div>
+      <div class="apanel-stats">
+        <div class="astat pct-outer"><div class="al">P10</div><div class="av" id="ap-cc-p10">—</div></div>
+        <div class="astat pct-inner"><div class="al">P25</div><div class="av" id="ap-cc-p25">—</div></div>
+        <div class="astat pct-med">  <div class="al">Median</div><div class="av" id="ap-cc-med">—</div></div>
+        <div class="astat pct-inner"><div class="al">P75</div><div class="av" id="ap-cc-p75">—</div></div>
+        <div class="astat pct-outer"><div class="al">P90</div><div class="av" id="ap-cc-p90">—</div></div>
+        <div class="astat pct-spread"><div class="al">Spread</div><div class="av" id="ap-cc-spread">—</div></div>
+        <div class="astat hi"><div class="al" id="ap-cc-plbl">P(≥50%)</div><div class="av" id="ap-cc-prob">—</div></div>
+      </div>
+      <button class="apanel-pin" id="ap-cc-pin" onclick="toggleCCPin()">📌 Anheften</button>
+      <div class="apanel-box">
+        <svg id="ap-cc-box" width="80" height="100" viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+          <text x="40" y="54" text-anchor="middle" font-size="9" fill="var(--muted)">Hover →</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Cloud layers — only rendered when data available -->
+    <div id="cc-layers" style="display:none">
+      <div class="panels">
+        <div class="panel">
+          <div class="ptitle">Tiefe Bewölkung (cloudcover_low)</div>
+          <div class="cwrap"><canvas id="c-cc-low"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="ptitle">Mittelhohe Bewölkung (cloudcover_mid)</div>
+          <div class="cwrap"><canvas id="c-cc-mid"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="ptitle">Hohe Bewölkung (cloudcover_high)</div>
+          <div class="cwrap"><canvas id="c-cc-high"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <div class="notice" id="cc-notice" style="margin-bottom:12px">
+      Gesamtbedeckung verfügbar. Schichten (tief/mittel/hoch) werden angezeigt wenn Daten vorhanden.
+    </div>
+  </div>
+
+  <!-- Wind combo tab -->
+  <div id="wind-content" style="display:none">
+    <!-- Row 1: speed plume (left) + P-chart with slider (right) — consistent with other tabs -->
+    <div class="panels" style="margin-bottom:0">
+      <div class="panel" style="margin-bottom:12px">
+        <div class="ptitle">Windgeschwindigkeit — Ensemble-Plume</div>
+        <div class="cwrap"><canvas id="c-wind-speed"></canvas></div>
+        <div class="legend">
+          <div class="li"><div class="ll" style="background:#3B8BD4;height:2.5px"></div>Median</div>
+          <div class="li"><div class="lb" style="background:rgba(59,139,212,.25);height:8px"></div>P25–P75</div>
+          <div class="li"><div class="lb" style="background:rgba(59,139,212,.1);height:8px"></div>P10–P90</div>
+          <div class="li"><div class="ll" style="border-top:2px dashed rgba(186,117,23,.8);height:0;width:20px"></div>Schwelle</div>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:12px">
+        <div class="ptitle" id="wind-prob-title">P(Wind ≥ Schwelle)</div>
+        <div class="trow">
+          <span>Schwelle</span>
+          <input type="range" id="wind-thr-slider" min="0" max="80" value="25" step="1" oninput="onWindThrSlide(this.value)">
+          <span class="tval" id="wind-thr-disp">25 kt</span>
+        </div>
+        <div class="cwrap"><canvas id="c-wind-prob"></canvas></div>
+        <div class="legend">
+          <div class="li"><div class="lb" style="background:rgba(59,109,17,.8)"></div>&lt; 30 %</div>
+          <div class="li"><div class="lb" style="background:rgba(186,117,23,.8)"></div>30–60 %</div>
+          <div class="li"><div class="lb" style="background:rgba(216,90,48,.8)"></div>&gt; 60 %</div>
+        </div>
+      </div>
+    </div>
+    <!-- Compare P-charts placeholder (shown only in compare mode) -->
+    <div id="wind-cmp-row" style="display:none">
+      <div class="cmp-panels" style="margin-bottom:12px">
+        <div class="panel">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+            <div class="ptitle" id="wind-cmp-prob1-title">P(Wind ≥ Schwelle) — M1</div>
+            <span class="cmp-badge cmp-m1" id="wind-cmp-m1-badge">M1</span>
+          </div>
+          <div class="cwrap"><canvas id="c-wind-cmp-prob1"></canvas></div>
+        </div>
+        <div class="panel">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+            <div class="ptitle" id="wind-cmp-prob2-title">P(Wind ≥ Schwelle) — M2</div>
+            <span class="cmp-badge cmp-m2" id="wind-cmp-m2-badge">M2</span>
+          </div>
+          <div class="cwrap"><canvas id="c-wind-cmp-prob2"></canvas></div>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:12px">
+        <div class="ptitle" id="wind-cmp-diff-title">Modellkonsistenz — Δ Median Wind</div>
+        <div style="height:90px;position:relative"><canvas id="c-wind-cmp-diff"></canvas></div>
+        <div class="legend" style="margin-top:6px">
+          <div class="li"><div class="lb" style="background:rgba(59,109,17,.8)"></div>Einig</div>
+          <div class="li"><div class="lb" style="background:rgba(186,117,23,.8)"></div>Mäßige Abweichung</div>
+          <div class="li"><div class="lb" style="background:rgba(216,90,48,.8)"></div>Starke Divergenz</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analysis panel (full width) -->
+    <div class="apanel" id="apanel-wind" style="margin-bottom:12px"
+         onmouseenter="if(_windHideTimer){clearTimeout(_windHideTimer);_windHideTimer=null;}"
+         onmouseleave="hideWindPanel()">
+      <div class="apanel-time" id="ap-wind-time">—</div>
+      <div class="apanel-stats">
+        <div class="astat pct-outer"><div class="al">P10</div><div class="av" id="ap-wind-p10">—</div></div>
+        <div class="astat pct-inner"><div class="al">P25</div><div class="av" id="ap-wind-p25">—</div></div>
+        <div class="astat pct-med">  <div class="al">Median</div><div class="av" id="ap-wind-med">—</div></div>
+        <div class="astat pct-inner"><div class="al">P75</div><div class="av" id="ap-wind-p75">—</div></div>
+        <div class="astat pct-outer"><div class="al">P90</div><div class="av" id="ap-wind-p90">—</div></div>
+        <div class="astat pct-spread"><div class="al">Spread</div><div class="av" id="ap-wind-spread">—</div></div>
+        <div class="astat hi"><div class="al" id="ap-wind-plbl">P(≥25kt)</div><div class="av" id="ap-wind-prob">—</div></div>
+      </div>
+      <button class="apanel-pin" id="ap-wind-pin" onclick="toggleWindPin()">📌 Anheften</button>
+      <div class="apanel-box">
+        <svg id="ap-wind-box" width="80" height="100" viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+          <text x="40" y="54" text-anchor="middle" font-size="9" fill="var(--muted)">Hover →</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Row 2: direction heatmap (left, under plume) + wind rose (right, under P-chart) -->
+    <div class="panels" style="margin-bottom:0">
+      <div class="panel" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+          <div class="ptitle" style="margin-bottom:0">Windrichtung — Häufigkeitsverteilung</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+            <span style="font-size:11px;color:var(--muted)">Auflösung:</span>
+            <button class="seg-btn on" id="bin-45"   onclick="setWindBin(45)">45°</button>
+            <button class="seg-btn"    id="bin-22"   onclick="setWindBin(22.5)">22.5°</button>
+            <button class="seg-btn"    id="bin-10"   onclick="setWindBin(10)">10°</button>
+          </div>
+          <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="checkbox" id="dir-zoom" onchange="renderWindDir()" style="width:auto">
+            Zoom auf Aktivbereich
+          </label>
+        </div>
+        <div class="heatmap-wrap"><canvas id="c-wind-dir"></canvas></div>
+        <div id="wind-dir-legend" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;font-size:11px;color:var(--muted);align-items:center">
+          <span>0 %</span>
+          <div style="flex:1;max-width:160px;height:8px;border-radius:4px;background:linear-gradient(to right,var(--bg),#3B8BD4)"></div>
+          <span>100 %</span>
+          <span style="margin-left:12px">Anteil Member im Sektor</span>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:12px">
+        <div class="ptitle">Windrose — gewähltes Zeitfenster</div>
+        <div class="rose-wrap"><canvas id="c-wind-rose"></canvas></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">
+          Häufigkeit der Windrichtung × Stärke (alle Member)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weathercode tab -->
+  <div id="wc-content" style="display:none">
+
+    <!-- Überblick Stapeldiagramm -->
+    <div class="panel full" style="margin-bottom:12px">
+      <div class="ptitle">Wettererscheinungen (TAF) — Überblick je Zeitschritt [% der Member]</div>
+      <div class="cwrap-lg"><canvas id="c-wc"></canvas></div>
+      <div class="legend" style="margin-top:8px" id="wc-legend"></div>
+    </div>
+
+    <!-- Modus-Streifen -->
+    <div class="panel full" style="margin-bottom:12px">
+      <div class="ptitle">Dominantes TAF-Phänomen je Zeitschritt (Modus über alle Member)</div>
+      <div style="overflow-x:auto"><canvas id="c-wc-mode" style="height:52px;min-width:600px"></canvas></div>
+    </div>
+
+    <!-- Hazard P-Charts — Zeile 1 -->
+    <div class="panels" style="margin-bottom:12px">
+      <div class="panel">
+        <div class="ptitle" style="color:#A32D2D">⚡ P(Gewitter) — TS / TSRA / TSGR / +TSGR</div>
+        <div class="cwrap"><canvas id="c-wc-ts"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="ptitle" style="color:#534AB7">❄ P(Vereisung) — FZFG / FZDZ / FZRA</div>
+        <div class="cwrap"><canvas id="c-wc-fz"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="ptitle" style="color:#185FA5">🌧 P(Starkniederschlag) — +RA / +SN / +SHRA</div>
+        <div class="cwrap"><canvas id="c-wc-hvy"></canvas></div>
+      </div>
+    </div>
+    <!-- Hazard P-Charts — Zeile 2 -->
+    <div class="panels" style="margin-bottom:12px">
+      <div class="panel">
+        <div class="ptitle" style="color:#888780">🌫 P(FG) — Nebel (nicht gefrierend)</div>
+        <div class="cwrap"><canvas id="c-wc-fg"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="ptitle" style="color:#534AB7">🌫❄ P(FZFG) — Gefrierender Nebel ⚠</div>
+        <div class="cwrap"><canvas id="c-wc-fzfg"></canvas></div>
+      </div>
+    </div>
+
+    <div class="notice">
+      TAF-Phänomene nach WMO→TAF-Mapping (ICAO Annex 3 / WMO No. 49).
+      Nicht alle Modelle liefern weather_code als Ensemble-Variable.
+      Hazard-P-Charts: Anteil der Member mit dem jeweiligen Phänomen je Zeitschritt.
+    </div>
+  </div>
+
+  <!-- Modellvergleich content -->
+  <div id="compare-content" style="display:none">
+    <!-- Missing parameter notice -->
+    <div class="notice" id="cmp-m2-missing" style="display:none;margin-bottom:10px">
+      ⚠ <span id="cmp-m2-missing-txt"></span>
+    </div>
+    <div class="cmp-panels">
+      <div class="panel cmp-full">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div class="ptitle" style="margin-bottom:0" id="cmp-ptitle">Ensemble-Plume — Modellvergleich</div>
+          <span class="cmp-badge cmp-m1" id="cmp-m1-lbl">M1</span>
+          <span class="cmp-badge cmp-m2" id="cmp-m2-lbl">M2</span>
+        </div>
+        <div class="cwrap"><canvas id="c-cmp-plume"></canvas></div>
+        <div class="legend" style="margin-top:8px">
+          <div class="li"><div class="ll" id="cmp-leg-m1" style="height:2.5px"></div><span id="cmp-leg-m1-txt">M1 Median</span></div>
+          <div class="li"><div class="lb" id="cmp-leg-m1-iqr" style="height:8px"></div>M1 IQR</div>
+          <div class="li"><div class="ll" id="cmp-leg-m2" style="height:0;border-top:2.5px dashed #534AB7;width:20px"></div><span id="cmp-leg-m2-txt">M2 Median</span></div>
+          <div class="li"><div class="lb" style="background:rgba(83,74,183,.22);height:8px"></div>M2 IQR</div>
+          <div class="li"><div class="ll" style="border-top:1.5px dashed rgba(186,117,23,.8);height:0;width:20px"></div>Schwelle</div>
+        </div>
+        <!-- Threshold slider + direction toggle — directly visible in compare mode -->
+        <div class="trow" style="margin-top:8px">
+          <div class="dir-toggle" id="cmp-dir-toggle">
+            <button class="dir-btn on" id="cmp-dir-below" onclick="setCmpDir('below')">≤ Schwelle</button>
+            <button class="dir-btn"    id="cmp-dir-above" onclick="setCmpDir('above')">≥ Schwelle</button>
+          </div>
+          <span>Schwelle</span>
+          <input type="range" id="cmp-thr-slider" min="0" max="100" value="25"
+                 oninput="onCmpThrSlide(this.value)">
+          <span class="tval" id="cmp-thr-disp">25</span>
+        </div>
+      </div>
+    </div>
+    <div class="cmp-panels">
+      <div class="panel">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <div class="ptitle" style="margin-bottom:0" id="cmp-prob1-title">P(…) — M1</div>
+          <span class="cmp-badge cmp-m1" id="cmp-prob1-badge">M1</span>
+        </div>
+        <div class="cwrap"><canvas id="c-cmp-prob1"></canvas></div>
+      </div>
+      <div class="panel">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <div class="ptitle" style="margin-bottom:0" id="cmp-prob2-title">P(…) — M2</div>
+          <span class="cmp-badge cmp-m2" id="cmp-prob2-badge">M2</span>
+        </div>
+        <div class="cwrap"><canvas id="c-cmp-prob2"></canvas></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:12px">
+      <div class="ptitle" id="cmp-diff-title">Modellkonsistenz — Differenz der Mediane (M2 − M1)</div>
+      <div style="height:90px;position:relative"><canvas id="c-cmp-diff"></canvas></div>
+      <div class="legend" style="margin-top:6px">
+        <div class="li"><div class="lb" style="background:rgba(59,109,17,.8)"></div>Einig (≤ Toleranz)</div>
+        <div class="li"><div class="lb" style="background:rgba(186,117,23,.8)"></div>Mäßige Abweichung</div>
+        <div class="li"><div class="lb" style="background:rgba(216,90,48,.8)"></div>Starke Divergenz</div>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted)" id="cmp-tol-note">Toleranz konfigurierbar</span>
+      </div>
+    </div>
+    <!-- Analysis panel for compare mode -->
+    <div class="apanel" id="apanel-cmp" style="margin-bottom:12px"
+         onmouseenter="if(_cmpHideTimer){clearTimeout(_cmpHideTimer);_cmpHideTimer=null;}"
+         onmouseleave="hideCmpPanel()">
+      <div class="apanel-time" id="ap-cmp-time">—</div>
+      <div style="display:flex;gap:20px;flex:1;flex-wrap:wrap">
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:5px"><span class="cmp-badge cmp-m1" id="ap-cmp-m1-lbl">M1</span></div>
+          <div class="apanel-stats" id="ap-cmp-stats1">
+            <div class="astat pct-outer"><div class="al">P10</div><div class="av" id="ap-cmp1-p10">—</div></div>
+            <div class="astat pct-inner"><div class="al">P25</div><div class="av" id="ap-cmp1-p25">—</div></div>
+            <div class="astat pct-med"><div class="al">Median</div><div class="av" id="ap-cmp1-med">—</div></div>
+            <div class="astat pct-inner"><div class="al">P75</div><div class="av" id="ap-cmp1-p75">—</div></div>
+            <div class="astat pct-outer"><div class="al">P90</div><div class="av" id="ap-cmp1-p90">—</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:5px"><span class="cmp-badge cmp-m2" id="ap-cmp-m2-lbl">M2</span></div>
+          <div class="apanel-stats" id="ap-cmp-stats2">
+            <div class="astat pct-outer"><div class="al">P10</div><div class="av" id="ap-cmp2-p10">—</div></div>
+            <div class="astat pct-inner"><div class="al">P25</div><div class="av" id="ap-cmp2-p25">—</div></div>
+            <div class="astat pct-med"><div class="al">Median</div><div class="av" id="ap-cmp2-med">—</div></div>
+            <div class="astat pct-inner"><div class="al">P75</div><div class="av" id="ap-cmp2-p75">—</div></div>
+            <div class="astat pct-outer"><div class="al">P90</div><div class="av" id="ap-cmp2-p90">—</div></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 8px;border-left:0.5px solid var(--border)">
+          <div class="astat hi" style="border:none;padding:0"><div class="al" id="ap-cmp-difflbl">Δ Median</div><div class="av" id="ap-cmp-diff">—</div></div>
+        </div>
+      </div>
+      <button class="apanel-pin" id="ap-cmp-pin" onclick="toggleCmpPin()">📌 Anheften</button>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ═══ CONFIG PANEL ══════════════════════════════════════════════════════ -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeCfg()">
+  <div class="cpanel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h2>Schwellenwerte konfigurieren</h2>
+      <button class="btn" onclick="closeCfg()" style="padding:3px 9px;font-size:12px">✕</button>
+    </div>
+
+    <div class="csec">
+      <h3>Wind &amp; Böen</h3>
+      <div class="crow"><label>Wind  ≥ Schwelle</label><input type="number" id="c-wind" min="0" max="200"><span class="unit">kt</span></div>
+      <div class="crow"><label>Böen  ≥ Schwelle</label><input type="number" id="c-gusts" min="0" max="300"><span class="unit">kt</span></div>
+    </div>
+
+    <div class="csec">
+      <h3>Temperatur &amp; Feuchte</h3>
+      <div class="crow"><label>Temperatur  ≤ Schwelle</label><input type="number" id="c-temp" min="-50" max="50"><span class="unit">°C</span></div>
+      <div class="crow"><label>Taupunkt  ≤ Schwelle</label><input type="number" id="c-dewpoint" min="-50" max="30"><span class="unit">°C</span></div>
+      <div class="crow"><label>Rel. Feuchte  ≥ Schwelle</label><input type="number" id="c-humidity" min="0" max="100"><span class="unit">%</span></div>
+    </div>
+
+    <div class="csec">
+      <h3>Bewölkung &amp; Sicht</h3>
+      <div class="crow"><label>Bedeckung gesamt  ≥ Schwelle</label><input type="number" id="c-cloudcover" min="0" max="100"><span class="unit">%</span></div>
+      <div class="crow"><label>Sicht  ≤ Schwelle</label><input type="number" id="c-visibility" min="0" max="99999" step="500"><span class="unit">m</span></div>
+    </div>
+
+    <div class="csec">
+      <h3>Niederschlag</h3>
+      <div class="crow"><label>Gesamt  ≥ Schwelle</label><input type="number" id="c-precip" min="0" max="200" step="0.5"><span class="unit">mm</span></div>
+      <div class="crow"><label>Regen  ≥ Schwelle</label><input type="number" id="c-rain" min="0" max="200" step="0.5"><span class="unit">mm</span></div>
+      <div class="crow"><label>Schneefall  ≥ Schwelle</label><input type="number" id="c-snow" min="0" max="100" step="0.5"><span class="unit">cm</span></div>
+      <div class="crow"><label>Schneehöhe  ≥ Schwelle</label><input type="number" id="c-snowdepth" min="0" max="20" step="0.1"><span class="unit">m</span></div>
+    </div>
+
+    <div class="csec">
+      <h3>Konvektion</h3>
+      <div class="crow"><label>CAPE  ≥ Schwelle</label><input type="number" id="c-cape" min="0" max="10000" step="100"><span class="unit">J/kg</span></div>
+    </div>
+
+    <div class="csec">
+      <h3>Vergleich — Konsistenz-Toleranz</h3>
+      <div class="notice" style="margin-bottom:8px;font-size:11px">
+        Maximale Δ Median ohne Farbmarkierung (grün = Modelle einig).
+      </div>
+      <div class="crow"><label>Wind / Böen</label><input type="number" id="c-tol-wind" min="0" max="50" step="1"><span class="unit">kt</span></div>
+      <div class="crow"><label>Temperatur / Taupunkt</label><input type="number" id="c-tol-temp" min="0" max="20" step="0.5"><span class="unit">°C</span></div>
+      <div class="crow"><label>Niederschlag / Regen</label><input type="number" id="c-tol-precip" min="0" max="10" step="0.1"><span class="unit">mm</span></div>
+      <div class="crow"><label>CAPE</label><input type="number" id="c-tol-cape" min="0" max="1000" step="50"><span class="unit">J/kg</span></div>
+    </div>
+    <button class="btn" onclick="resetCfg()" style="width:100%;margin-top:4px">Auf Standardwerte zurücksetzen</button>
+  </div>
+</div>
+
+<!-- ═══ JAVASCRIPT ════════════════════════════════════════════════════════ -->
+<script>
+// ─────────────────────────────────────────────────────────────
+// AIRPORT LOOKUP TABLE
+// ─────────────────────────────────────────────────────────────
+const AP = {
+  // Deutschland
+  EDDF:{lat:50.033,lon:8.571,name:'Frankfurt Main'},
+  EDDM:{lat:48.354,lon:11.786,name:'München'},
+  EDDK:{lat:50.866,lon:7.143,name:'Köln/Bonn'},
+  EDDL:{lat:51.289,lon:6.757,name:'Düsseldorf'},
+  EDDS:{lat:48.689,lon:9.222,name:'Stuttgart'},
+  EDDB:{lat:52.366,lon:13.503,name:'Berlin Brandenburg'},
+  EDDH:{lat:53.631,lon:9.988,name:'Hamburg'},
+  EDDN:{lat:49.500,lon:11.078,name:'Nürnberg'},
+  EDDV:{lat:52.461,lon:9.685,name:'Hannover'},
+  EDDW:{lat:53.048,lon:8.787,name:'Bremen'},
+  EDDC:{lat:51.133,lon:13.767,name:'Dresden'},
+  EDDP:{lat:51.433,lon:12.242,name:'Leipzig/Halle'},
+  EDDR:{lat:49.215,lon:7.110,name:'Saarbrücken'},
+  EDDE:{lat:50.980,lon:10.958,name:'Erfurt'},
+  EDDG:{lat:52.134,lon:7.685,name:'Münster/Osnabrück'},
+  EDJA:{lat:47.693,lon:10.240,name:'Allgäu/Memmingen'},
+  EDNY:{lat:47.671,lon:9.514,name:'Friedrichshafen'},
+  EDLW:{lat:51.614,lon:7.612,name:'Dortmund'},
+  EDXW:{lat:54.913,lon:8.340,name:'Westerland/Sylt'},
+  EDHI:{lat:53.635,lon:9.835,name:'Hamburg Finkenwerder'},
+  EDDQ:{lat:49.919,lon:10.919,name:'Bamberg/Burg'},
+  // Österreich
+  LOWW:{lat:48.120,lon:16.570,name:'Wien Schwechat'},
+  LOWI:{lat:47.260,lon:11.344,name:'Innsbruck'},
+  LOWS:{lat:47.793,lon:13.004,name:'Salzburg'},
+  LOWL:{lat:48.239,lon:14.188,name:'Linz'},
+  LOWG:{lat:46.991,lon:15.440,name:'Graz'},
+  LOWK:{lat:46.643,lon:14.337,name:'Klagenfurt'},
+  // Schweiz
+  LSZH:{lat:47.464,lon:8.549,name:'Zürich'},
+  LSGG:{lat:46.238,lon:6.109,name:'Genf'},
+  LSZB:{lat:46.912,lon:7.499,name:'Bern-Belp'},
+  LSBA:{lat:47.485,lon:9.560,name:'Altenrhein'},
+  LSMP:{lat:46.842,lon:6.918,name:'Payerne'},
+  LSME:{lat:47.090,lon:8.305,name:'Emmen'},
+  // Frankreich
+  LFPG:{lat:49.013,lon:2.550,name:'Paris CDG'},
+  LFPO:{lat:48.725,lon:2.360,name:'Paris Orly'},
+  LFML:{lat:43.436,lon:5.215,name:'Marseille'},
+  LFBO:{lat:43.629,lon:1.364,name:'Toulouse'},
+  LFMN:{lat:43.665,lon:7.215,name:'Nizza'},
+  LFLL:{lat:45.726,lon:5.090,name:'Lyon'},
+  LFST:{lat:48.538,lon:7.628,name:'Strassburg'},
+  LFSB:{lat:47.590,lon:7.529,name:'Basel-Mulhouse'},
+  // Niederlande / Belgien
+  EHAM:{lat:52.309,lon:4.764,name:'Amsterdam Schiphol'},
+  EBBR:{lat:50.901,lon:4.484,name:'Brüssel'},
+  EBOS:{lat:51.200,lon:2.862,name:'Ostende'},
+  // UK / Irland
+  EGLL:{lat:51.477,lon:-0.461,name:'London Heathrow'},
+  EGKK:{lat:51.148,lon:-0.190,name:'London Gatwick'},
+  EGCC:{lat:53.354,lon:-2.275,name:'Manchester'},
+  EGPF:{lat:55.872,lon:-4.433,name:'Glasgow'},
+  EIDW:{lat:53.421,lon:-6.270,name:'Dublin'},
+  // Spanien / Portugal
+  LEMD:{lat:40.472,lon:-3.561,name:'Madrid Barajas'},
+  LEBL:{lat:41.297,lon:2.078,name:'Barcelona'},
+  LPPT:{lat:38.774,lon:-9.135,name:'Lissabon'},
+  // Italien
+  LIRF:{lat:41.800,lon:12.239,name:'Rom Fiumicino'},
+  LIMC:{lat:45.630,lon:8.723,name:'Mailand Malpensa'},
+  LIPZ:{lat:45.505,lon:12.352,name:'Venedig'},
+  LIMF:{lat:45.200,lon:7.649,name:'Turin'},
+  // Skandinavien / Baltikum
+  EKCH:{lat:55.618,lon:12.656,name:'Kopenhagen'},
+  ENGM:{lat:60.194,lon:11.100,name:'Oslo Gardermoen'},
+  ESGG:{lat:57.663,lon:12.298,name:'Göteborg Landvetter'},
+  ESSA:{lat:59.652,lon:17.918,name:'Stockholm Arlanda'},
+  EFHK:{lat:60.317,lon:24.963,name:'Helsinki Vantaa'},
+  // Mittel-/Osteuropa
+  LKPR:{lat:50.100,lon:14.260,name:'Prag'},
+  EPWA:{lat:52.166,lon:20.967,name:'Warschau'},
+  LHBP:{lat:47.433,lon:19.261,name:'Budapest'},
+  LDZA:{lat:45.743,lon:16.069,name:'Zagreb'},
+  LJLJ:{lat:46.224,lon:14.457,name:'Ljubljana'},
+  // Sonstige
+  LCLK:{lat:34.875,lon:33.625,name:'Larnaka'},
+  LGAV:{lat:37.936,lon:23.944,name:'Athen'},
+  LTBA:{lat:40.978,lon:28.814,name:'Istanbul Atatürk'},
+  UUEE:{lat:55.972,lon:37.415,name:'Moskau Scheremetjewo'},
+  CYYR:{lat:53.319,lon:-60.426,name:'Goose Bay'},
+  // Zusätzliche deutsche Flugplätze
+  EDMO:{lat:48.081,lon:11.283,name:'Oberpfaffenhofen'},
+  EDJA:{lat:47.689,lon:10.239,name:'Memmingen'},
+  EDMA:{lat:48.425,lon:10.931,name:'Augsburg'},
+  EDNX:{lat:48.239,lon:11.560,name:'Oberschleißheim'},
+  EDQD:{lat:49.974,lon:11.640,name:'Bayreuth'},
+  EDTD:{lat:47.974,lon:8.522,name:'Donaueschingen'},
+  EDTF:{lat:47.988,lon:7.832,name:'Freiburg'},
+  EDTH:{lat:48.768,lon:9.957,name:'Heidenheim-Mergelstetten'},
+  EDUU:{lat:48.570,lon:9.221,name:'Hahnweide/Kirchheim'},
+  LSZR:{lat:47.485,lon:9.560,name:'St.Gallen-Altenrhein'},
+  LSZT:{lat:46.991,lon:8.218,name:'Buochs'},
+  LSZJ:{lat:46.904,lon:8.379,name:'Alpnach'},
+  LSMC:{lat:46.925,lon:7.498,name:'Bern Militär'},
+};
+
+// ─────────────────────────────────────────────────────────────
+// TAB DEFINITIONS
+// ─────────────────────────────────────────────────────────────
+const TABS = {
+  wind:      { apiVar:'windspeed_10m',       unit:'kt',  color:'#3B8BD4', cfgKey:'wind',      dir:'above', yLbl:'Windgeschw. (kt)',     pLbl:'P(Wind ≥ Schwelle)',         sMin:0,   sMax:80,    sStep:1   },
+  gusts:     { apiVar:'windgusts_10m',       unit:'kt',  color:'#D85A30', cfgKey:'gusts',     dir:'above', yLbl:'Böen (kt)',             pLbl:'P(Böen ≥ Schwelle)',         sMin:0,   sMax:120,   sStep:1   },
+  temp:      { apiVar:'temperature_2m',      unit:'°C',  color:'#D85A30', cfgKey:'temp',      dir:'below', yLbl:'Temperatur (°C)',       pLbl:'P(T ≤ Schwelle)',            sMin:-40, sMax:50,    sStep:1   },
+  dewpoint:  { apiVar:'dew_point_2m',        unit:'°C',  color:'#1D9E75', cfgKey:'dewpoint',  dir:'below', yLbl:'Taupunkt (°C)',         pLbl:'P(Td ≤ Schwelle)',           sMin:-40, sMax:30,    sStep:1   },
+  humidity:  { apiVar:'relative_humidity_2m',unit:'%',   color:'#185FA5', cfgKey:'humidity',  dir:'above', yLbl:'Rel. Feuchte (%)',      pLbl:'P(rF ≥ Schwelle)',           sMin:0,   sMax:100,   sStep:5   },
+  visibility:{ apiVar:'visibility',          unit:'m',   color:'#1D9E75', cfgKey:'visibility',dir:'below', yLbl:'Sichtweite (m)',        pLbl:'P(Sicht ≤ Schwelle)',        sMin:0,   sMax:30000, sStep:500 },
+  precip:    { apiVar:'precipitation',       unit:'mm',  color:'#185FA5', cfgKey:'precip',    dir:'above', yLbl:'Niederschlag (mm)',     pLbl:'P(Niederschlag ≥ Schwelle)', sMin:0,   sMax:50,    sStep:0.5 },
+  rain:      { apiVar:'rain',                unit:'mm',  color:'#3B8BD4', cfgKey:'rain',      dir:'above', yLbl:'Regen (mm)',            pLbl:'P(Regen ≥ Schwelle)',        sMin:0,   sMax:50,    sStep:0.5 },
+  snow:      { apiVar:'snowfall',            unit:'cm',  color:'#8BB8D4', cfgKey:'snow',      dir:'above', yLbl:'Schneefall (cm)',       pLbl:'P(Schneefall ≥ Schwelle)',   sMin:0,   sMax:30,    sStep:0.5 },
+  snowdepth: { apiVar:'snow_depth',           unit:'m_snow', color:'#534AB7', cfgKey:'snowdepth', dir:'above', yLbl:'Schneehöhe (m) — Gesamtschneehöhe', pLbl:'P(Schneehöhe ≥ Schwelle)', sMin:0, sMax:10, sStep:0.1 },
+  cape:      { apiVar:'cape',                unit:'J/kg',color:'#BA7517', cfgKey:'cape',      dir:'above', yLbl:'CAPE (J/kg)',           pLbl:'P(CAPE ≥ Schwelle)',         sMin:0,   sMax:5000,  sStep:100 },
+};
+
+const DEFAULT_CFG = {
+  wind:25, gusts:35,
+  temp:0, dewpoint:0, humidity:80,
+  cloudcover:50, visibility:5000,
+  precip:1, rain:1, snow:1, snowdepth:0.5,
+  cape:500,
+};
+
+// ─────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────
+const S = {
+  members:{}, labels:[], activeTab:'wind',
+  charts:{}, cfg:{...DEFAULT_CFG}, loc:null, pinned:false, hoverCtx:null, hoverCtxCC:null,
+  tabDir:{},  // per-tab direction overrides for reversible tabs
+  compare:false, model2:null, members2:{}, labels2:[],
+  tz:'UTC',  // 'UTC' | 'LOC'
+  cmpTolerance:{wind:5,gusts:8,temp:2,dewpoint:2,humidity:10,cloudcover:10,
+    visibility:2000,precip:0.5,rain:0.5,snow:2,snowdepth:5,cape:200},
+  view:{start:0, end:null},
+};
+
+// ─────────────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────────────
+function rgb(hex){
+  return { r:parseInt(hex.slice(1,3),16), g:parseInt(hex.slice(3,5),16), b:parseInt(hex.slice(5,7),16) };
+}
+function rgba(hex, a){ const {r,g,b}=rgb(hex); return `rgba(${r},${g},${b},${a})`; }
+
+function fmtDt(iso, short=false){
+  // Parse directly to avoid TZ issues
+  const [d,t]= iso.split('T');
+  const [y,mo,dd]= d.split('-').map(Number);
+  const hh= t ? t.slice(0,2) : '00';
+  const dt= new Date(y,mo-1,dd);
+  const dnames=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  return short ? `${hh}:00` : `${dnames[dt.getDay()]} ${dd}. ${hh}:00 ${S.tz}`;
+}
+
+function fmtVal(v, unit){
+  if(v===null||v===undefined||isNaN(v)) return '—';
+  if(unit==='kt')    return `${Math.round(v)} kt`;
+  if(unit==='%')     return `${Math.round(v)} %`;
+  if(unit==='mm')    return `${(+v).toFixed(1)} mm`;
+  if(unit==='cm')    return `${(+v).toFixed(1)} cm`;
+  if(unit==='°C')    return `${(+v).toFixed(1)} °C`;
+  if(unit==='J/kg')  return `${Math.round(v)} J/kg`;
+  if(unit==='m_snow') return `${(+v).toFixed(2)} m`;  // snow depth: 2 decimals
+  if(unit==='m'){
+    if(v>=10000) return `${(v/1000).toFixed(1)} km`;
+    return `${Math.round(v)} m`;
+  }
+  return `${Math.round(v)} ${unit}`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// DATA PROCESSING
+// ─────────────────────────────────────────────────────────────
+function extractMembers(hourly, varName){
+  const ms=[]; let i=1;
+  while(true){
+    const k=`${varName}_member${String(i).padStart(2,'0')}`;
+    if(!(k in hourly)) break;
+    ms.push(hourly[k]); i++;
+  }
+  return ms;
+}
+
+function stats(members){
+  if(!members?.length) return null;
+  const n=members[0].length;
+  const r={p10:[],p25:[],median:[],p75:[],p90:[]};
+  for(let t=0;t<n;t++){
+    const vs=members.map(m=>m[t]).filter(v=>v!==null&&!isNaN(v)).sort((a,b)=>a-b);
+    if(!vs.length){ Object.keys(r).forEach(k=>r[k].push(null)); continue; }
+    const L=vs.length;
+    r.p10.push(vs[Math.max(0,Math.floor(L*.10))]);
+    r.p25.push(vs[Math.max(0,Math.floor(L*.25))]);
+    r.median.push(vs[Math.floor(L*.50)]);
+    r.p75.push(vs[Math.min(L-1,Math.floor(L*.75))]);
+    r.p90.push(vs[Math.min(L-1,Math.floor(L*.90))]);
+  }
+  return r;
+}
+
+function viewSlice(){
+  const s=S.view.start;
+  const e=S.view.end??S.labels.length;
+  const labels=S.labels.slice(s,e);
+  const members={};
+  Object.entries(S.members).forEach(([k,ms])=>{
+    members[k]=ms.map(m=>m.slice(s,e));
+  });
+  return {labels,members};
+}
+
+function exceedance(members, thr, above=true){
+  if(!members?.length) return [];
+  return members[0].map((_,t)=>{
+    const vs=members.map(m=>m[t]).filter(v=>v!==null&&!isNaN(v));
+    if(!vs.length) return null;
+    const c= above ? vs.filter(v=>v>=thr).length : vs.filter(v=>v<=thr).length;
+    return Math.round(c/vs.length*100);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// GEOCODING & FETCH
+// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// LOCATION PICKER
+// ─────────────────────────────────────────────────────────────
+function hidePicker(){ document.getElementById('loc-picker').style.display='none'; }
+
+function showPicker(results, onSelect){
+  const picker=document.getElementById('loc-picker');
+  if(!results?.length){ hidePicker(); return; }
+
+  picker.innerHTML=`<div class="loc-header">${results.length} Treffer — bitte auswählen</div>`
+    + results.map((r,i)=>`
+      <div class="loc-option" data-i="${i}">
+        <span class="lo-name">${r.name}</span>
+        <span class="lo-detail">${[r.admin1,r.admin2,r.country].filter(Boolean).join(' · ')} · ${(+r.latitude).toFixed(3)}°N ${(+r.longitude).toFixed(3)}°E</span>
+      </div>`).join('');
+
+  picker.querySelectorAll('.loc-option').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const r=results[+el.dataset.i];
+      const name=r.name+(r.country?', '+r.country:'');
+      document.getElementById('in-icao').value=name;
+      hidePicker();
+      onSelect({lat:+r.latitude, lon:+r.longitude, name, icao:null});
+    });
+  });
+  picker.style.display='block';
+}
+
+// Resolve location — returns Promise<loc> or shows picker and returns null
+async function resolveLocation(q, silent=false){
+  const u=q.trim().toUpperCase();
+
+  // 1. Local ICAO table (exact match)
+  if(AP[u]) return {lat:AP[u].lat, lon:AP[u].lon, name:AP[u].name, icao:u};
+
+  // 2. Coordinate input
+  const m=q.match(/^(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)$/);
+  if(m) return {lat:+m[1], lon:+m[2], name:`${(+m[1]).toFixed(3)}°N ${(+m[2]).toFixed(3)}°E`, icao:null};
+
+  // 3. ICAO-like input (4 uppercase letters) not in local table → search as airport
+  const isIcaoLike=/^[A-Z]{4}$/.test(u);
+  const searchTerm = isIcaoLike ? `${u} airport` : q;
+
+  const r=await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(searchTerm)}&count=5&language=de`
+  );
+  const d=await r.json();
+  const results=d.results||[];
+
+  if(!results.length) throw new Error(`Ort nicht gefunden: "${q}"`);
+
+  // Single result or ICAO search → use directly
+  if(results.length===1 || isIcaoLike){
+    const r0=results[0];
+    return {lat:+r0.latitude, lon:+r0.longitude,
+      name:r0.name+(r0.country?', '+r0.country:''), icao:null};
+  }
+
+  // Multiple results for a place name → show picker, resolve via callback
+  return new Promise((resolve, reject)=>{
+    showPicker(results, loc=>resolve(loc));
+    // Also reject if user clicks away without selecting
+    const handler=e=>{
+      if(!document.getElementById('loc-picker').contains(e.target) &&
+         e.target.id!=='in-icao'){
+        hidePicker();
+        document.removeEventListener('click',handler);
+        reject(new Error('Auswahl abgebrochen'));
+      }
+    };
+    setTimeout(()=>document.addEventListener('click',handler),100);
+  });
+}
+
+async function fetchData(lat,lon,model,days){
+  const vars=[
+    'windspeed_10m','windgusts_10m','winddirection_10m',
+    'temperature_2m','relative_humidity_2m','dew_point_2m',
+    'precipitation','rain','snowfall','snow_depth',
+    'cloud_cover','cloudcover_low','cloudcover_mid','cloudcover_high',
+    'visibility','cape','weather_code',
+  ].join(',');
+  const url=`https://ensemble-api.open-meteo.com/v1/ensemble`
+    +`?latitude=${lat}&longitude=${lon}&models=${model}&hourly=${vars}`
+    +`&wind_speed_unit=kn&precipitation_unit=mm&timeformat=iso8601`
+    +`&forecast_days=${days}&timezone=${S.tz==='UTC'?'UTC':'auto'}`;
+  const r=await fetch(url);
+  if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.reason||`HTTP ${r.status}`); }
+  return r.json();
+}
+
+// ─────────────────────────────────────────────────────────────
+// CACHE (localStorage, TTL in Minuten)
+// ─────────────────────────────────────────────────────────────
+const CACHE_TTL_MIN = 60;
+
+function cacheKey(lat,lon,model,days){
+  return `eps_wx|${lat.toFixed(3)}|${lon.toFixed(3)}|${model}|${days}|${S.tz}`;
+}
+
+function cacheGet(key){
+  try {
+    const raw=localStorage.getItem(key);
+    if(!raw) return null;
+    const {ts,data}=JSON.parse(raw);
+    if(Date.now()-ts > CACHE_TTL_MIN*60*1000){ localStorage.removeItem(key); return null; }
+    return data;
+  } catch(e){ return null; }
+}
+
+function cacheSet(key,data){
+  try { localStorage.setItem(key, JSON.stringify({ts:Date.now(), data})); }
+  catch(e){ /* quota exceeded */ }
+}
+
+// ─────────────────────────────────────────────────────────────
+// EVENT HANDLERS
+// ─────────────────────────────────────────────────────────────
+function clearDisplay(reason=''){
+  Object.keys(S.charts).forEach(k=>{ if(S.charts[k]){S.charts[k].destroy();delete S.charts[k];} });
+  S.members={}; S.labels=[]; S.view={start:0,end:null};
+  S.members2={}; S.labels2=[];
+  _cmpCtx=null;
+  const _mn=document.getElementById('cmp-m2-missing'); if(_mn) _mn.style.display='none';
+  ['std-content','cc-content','wind-content','wc-content','compare-content','zf-strip'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){ el.style.display='none'; el.classList&&el.classList.remove('visible'); }
+  });
+  [1,2,3].forEach(n=>{
+    document.getElementById(`sc-lbl${n}`).textContent='—';
+    document.getElementById(`sc-val${n}`).textContent='—';
+    document.getElementById(`sc-sub${n}`).textContent='';
+  });
+  document.querySelectorAll('.tab[data-t]').forEach(b=>{ b.classList.remove('disabled','on'); b.title=''; });
+  document.querySelector(`.tab[data-t="${S.activeTab}"]`)?.classList.add('on');
+  const ph=document.getElementById('ph');
+  ph.style.display='flex';
+  ph.innerHTML=reason
+    ? `<div style="font-size:32px">🔄</div><div>${reason}</div>`
+    : '<div style="font-size:40px">🌤</div><div>Station auswählen und Daten abrufen</div>';
+  if(reason) setStatus('idle', reason);
+}
+
+async function onFetch(){
+  const q=document.getElementById('in-icao').value.trim();
+  const model=document.getElementById('in-model').value;
+  const selEl=document.getElementById('in-days');
+  const selOpt=selEl.selectedOptions[0];
+  const days=+selOpt.value;
+  const limitHours=selOpt.dataset.hours ? +selOpt.dataset.hours : null;
+  if(!q){ setStatus('error','Bitte Station eingeben.'); return; }
+
+  const btn=document.getElementById('btn-fetch');
+  btn.disabled=true; btn.textContent='…';
+  setStatus('loading','Standort wird aufgelöst …');
+
+  try {
+    const loc=await resolveLocation(q);
+    S.loc=loc;
+
+    const key=cacheKey(loc.lat,loc.lon,model,days);
+    let data=cacheGet(key);
+    let fromCache=false;
+
+    if(data){ fromCache=true; setStatus('loading','Daten aus Cache geladen …'); }
+    else {
+      setStatus('loading',`Ensemble-Daten werden abgerufen … (${model})`);
+      data=await fetchData(loc.lat,loc.lon,model,days);
+      cacheSet(key,data);
+    }
+
+    const hr=data.hourly;
+    const sliceN= limitHours ? Math.min(limitHours, hr.time.length) : hr.time.length;
+    S.labels=hr.time.slice(0,sliceN);
+    S.members={};
+    S.view={start:0,end:null};
+
+    ['windspeed_10m','windgusts_10m','winddirection_10m',
+     'temperature_2m','relative_humidity_2m','dew_point_2m',
+     'precipitation','rain','snowfall','snow_depth',
+     'cloud_cover','cloudcover_low','cloudcover_mid','cloudcover_high',
+     'visibility','cape','weather_code'].forEach(v=>{
+       const m=extractMembers(hr,v).map(mem=>mem.slice(0,sliceN));
+       if(m.length) S.members[v]=m;
+    });
+
+    const nM=Object.values(S.members)[0]?.length??0;
+    const modelLbl=document.getElementById('in-model').selectedOptions[0].text;
+    const cacheNote= fromCache ? ` · 📦 Cache (TTL ${CACHE_TTL_MIN} min)` : '';
+    setStatus('ok',`${loc.name} · ${loc.lat.toFixed(3)}°N ${loc.lon.toFixed(3)}°E · ${modelLbl} · ${nM} Member · ${S.labels.length} Zeitschritte · ${S.tz}${cacheNote}`);
+    buildZeitfenster();
+    updateTabAvailability();
+    if(S.compare){
+      await fetchCompare();
+    } else {
+      renderTab(S.activeTab);
+    }
+
+  } catch(e){
+    if(e.message==='Auswahl abgebrochen'){ setStatus('idle','Bitte Ort aus der Liste auswählen.'); btn.disabled=false; btn.textContent='Abrufen'; return; }
+    setStatus('error',`Fehler: ${e.message}`);
+    document.getElementById('ph').style.display='flex';
+    document.getElementById('ph').innerHTML=`<div style="font-size:32px">⚠️</div><div>${e.message}</div>`;
+    document.getElementById('std-content').style.display='none';
+    document.getElementById('cc-content').style.display='none';
+    document.getElementById('wc-content').style.display='none';
+  }
+  btn.disabled=false; btn.textContent='Abrufen';
+}
+
+// ─────────────────────────────────────────────────────────────
+// CHART BUILDERS
+// ─────────────────────────────────────────────────────────────
+const DARK = ()=>window.matchMedia('(prefers-color-scheme:dark)').matches;
+
+function axisOpts(yLbl){
+  const tc= DARK() ? '#8a8a82' : '#6a6a64';
+  const gc= DARK() ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.05)';
+  return {
+    x:{ ticks:{color:tc,maxRotation:45,font:{size:11}}, grid:{color:gc} },
+    y:{ ticks:{color:tc,font:{size:11}}, grid:{color:gc},
+        title:{display:!!yLbl,text:yLbl,color:tc,font:{size:11}} },
+  };
+}
+
+const BASE_OPTS = {
+  animation:false, responsive:true, maintainAspectRatio:false,
+  interaction:{mode:'index',intersect:false},
+  elements:{point:{radius:0},line:{borderCapStyle:'round'}},
+  plugins:{legend:{display:false}},
+};
+
+function killChart(id){ if(S.charts[id]){S.charts[id].destroy();delete S.charts[id];} }
+
+function plumeDatasets(members, st, color, thr){
+  function ra(a){ const {r,g,b}=parseColor(color); return `rgba(${r},${g},${b},${a})`; }
+  const ds=[];
+  ds.push({data:st.p90, fill:'+1', backgroundColor:ra(.09), borderColor:'transparent', borderWidth:0, pointRadius:0, tension:.3, label:''});
+  ds.push({data:st.p10, fill:false, borderColor:'transparent', borderWidth:0, pointRadius:0, tension:.3, label:''});
+  ds.push({data:st.p75, fill:'+1', backgroundColor:ra(.22), borderColor:'transparent', borderWidth:0, pointRadius:0, tension:.3, label:''});
+  ds.push({data:st.p25, fill:false, borderColor:'transparent', borderWidth:0, pointRadius:0, tension:.3, label:''});
+  members.forEach(m=>ds.push({data:m, fill:false, borderColor:ra(.12), borderWidth:.75, pointRadius:0, tension:.3, label:''}));
+  ds.push({data:st.median, fill:false, borderColor:color, borderWidth:2.5, pointRadius:0, tension:.3, label:'Median'});
+  if(thr!==null&&thr!==undefined)
+    ds.push({data:Array(members[0].length).fill(thr), fill:false,
+      borderColor:'rgba(186,117,23,.75)', borderWidth:1.3, borderDash:[5,4], pointRadius:0, tension:0, label:'Schwelle'});
+  return ds;
+}
+
+function parseColor(c){
+  if(c.startsWith('#')){ return {r:parseInt(c.slice(1,3),16),g:parseInt(c.slice(3,5),16),b:parseInt(c.slice(5,7),16)}; }
+  const m=c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  return m?{r:+m[1],g:+m[2],b:+m[3]}:{r:136,g:135,b:128};
+}
+
+function probColor(p){ return p>=60?'rgba(216,90,48,.82)':p>=30?'rgba(186,117,23,.82)':'rgba(59,109,17,.82)'; }
+
+function probDatasets(probs){
+  return [{
+    data:probs,
+    backgroundColor:probs.map(p=>p===null?'rgba(136,135,128,.4)':probColor(p)),
+    borderRadius:3, borderWidth:0, barPercentage:.85,
+  }];
+}
+
+function chartLabels(labels){
+  const n=labels.length;
+  const step=Math.max(1,Math.floor(n/56));
+  return labels.map((l,i)=>i%step===0?fmtDt(l):'');
+}
+
+// ─────────────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────────────
+function renderTab(tab){
+  // Route to compare renderer when active and model2 data available
+  if(S.compare && Object.keys(S.members2).length>0 && tab!=='wc'){
+    if(tab==='cloudcover'){ renderCloudcoverCompare(); return; }
+    if(tab==='wind')       { renderWindCompare(); return; }
+    renderTabCompare(tab); return;
+  }
+  if(tab==='wc')          { renderWC();        return; }
+  if(tab==='cloudcover')  { renderCloudcover(); return; }
+  if(tab==='wind')        { renderWindCombo();  return; }
+  document.getElementById('wc-content').style.display='none';
+  document.getElementById('cc-content').style.display='none';
+  document.getElementById('wind-content').style.display='none';
+  document.getElementById('compare-content').style.display='none';
+
+  const {labels:vLabels, members:vMembers}=viewSlice();
+  const td=TABS[tab];
+  const ms=vMembers[td.apiVar];
+
+  document.getElementById('ph').style.display='none';
+
+  if(!ms?.length){
+    document.getElementById('std-content').style.display='none';
+    document.getElementById('ph').style.display='flex';
+    document.getElementById('ph').innerHTML='<div style="font-size:32px">⚠️</div>'
+      +'<div>Keine Daten für diesen Parameter im gewählten Modell.</div>';
+    return;
+  }
+
+  document.getElementById('std-content').style.display='block';
+  document.getElementById('apanel').classList.remove('visible');
+  S.hoverCtx=null; S.pinned=false;
+  const pinBtn=document.getElementById('ap-pin');
+  if(pinBtn){pinBtn.classList.remove('pinned');pinBtn.textContent='📌 Anheften';}
+
+  // Direction toggle: show for reversible tabs, hide otherwise
+  const isReversible=REVERSIBLE_TABS.includes(tab);
+  const toggleEl=document.getElementById('dir-toggle');
+  if(toggleEl) toggleEl.classList.toggle('visible', isReversible);
+  // Effective direction: user override or tab default
+  const effDir = isReversible && S.tabDir[tab] ? S.tabDir[tab] : td.dir;
+  if(isReversible){
+    document.getElementById('dir-btn-below').classList.toggle('on', effDir==='below');
+    document.getElementById('dir-btn-above').classList.toggle('on', effDir==='above');
+  }
+
+  const st=stats(ms);
+  const thr=S.cfg[td.cfgKey];
+  const lbl=chartLabels(vLabels);
+  const probs=exceedance(ms,thr,effDir==='above');
+
+  // Stat cards
+  const validMedian=st.median.filter(v=>v!==null&&isFinite(v));
+  const extremal= !validMedian.length ? null
+    : td.dir==='above' ? Math.max(...validMedian) : Math.min(...validMedian);
+  const extremalIdx= extremal===null ? -1
+    : td.dir==='above' ? st.median.indexOf(extremal)
+    : st.median.findIndex(v=>v===extremal);
+  const extremalTime= extremalIdx>=0&&vLabels[extremalIdx] ? fmtDt(vLabels[extremalIdx],true) : '';
+  const isAccum = (tab==='snowdepth');
+
+  setCard(1,
+    td.dir==='above' ? (isAccum?'Median-Maximum (Gesamtschneehöhe)':'Median-Maximum') : 'Median-Minimum',
+    extremal===null ? 'n/v' : fmtVal(extremal, td.unit),
+    extremalTime ? `um ${extremalTime} ${S.tz}` : (extremal===null?'Keine gültigen Werte':'')
+  );
+
+  const validProbs=probs.filter(p=>p!==null&&isFinite(p));
+  const maxP= validProbs.length ? Math.max(...validProbs) : null;
+  const probColor2= maxP===null?'var(--muted)':maxP>=60?'#D85A30':maxP>=30?'#BA7517':'#3B6D11';
+  const dirSymbol = effDir==='above' ? '≥' : '≤';
+  const pLblDir = isReversible
+    ? td.pLbl.replace(/[≥≤]/g, dirSymbol)
+    : td.pLbl;
+  document.getElementById('ptitle-prob').textContent=pLblDir;
+  setCard(2,
+    `${pLblDir} (${fmtVal(thr,td.unit)})`,
+    maxP===null ? 'n/v' : `${maxP} %`,
+    'Max. im Vorhersagezeitraum', probColor2
+  );
+
+  const spreadVals= st.p10.map((v,i)=>
+    v!==null&&isFinite(v)&&st.p90[i]!==null&&isFinite(st.p90[i]) ? st.p90[i]-v : null).filter(v=>v!==null);
+  const maxSpread= spreadVals.length ? Math.max(...spreadVals) : null;
+  setCard(3,'Ensemble-Spread (P90–P10)',maxSpread===null?'n/v':fmtVal(maxSpread,td.unit),'Max. im Vorhersagezeitraum');
+
+  // Threshold slider
+  const sl=document.getElementById('thr-slider');
+  sl.min=td.sMin; sl.max=td.sMax; sl.step=td.sStep; sl.value=thr;
+  document.getElementById('thr-disp').textContent=fmtVal(thr,td.unit);
+  document.getElementById('ptitle-prob').textContent=td.pLbl;
+
+  // Store hover context
+  S.hoverCtx={st, probs, vLabels, unit:td.unit, thr, color:td.color, dir:effDir};
+
+  // Plume chart
+  killChart('plume');
+  S.charts.plume=new Chart(document.getElementById('c-plume').getContext('2d'),{
+    type:'line',
+    data:{labels:lbl, datasets:plumeDatasets(ms,st,td.color,thr)},
+    options:{
+      ...BASE_OPTS,
+      scales:axisOpts(td.yLbl),
+      plugins:{
+        legend:{display:false},
+        tooltip:{filter:item=>item.dataset.label==='Median',
+          callbacks:{label:ctx=>`Median: ${fmtVal(ctx.parsed.y,td.unit)}`}}
+      },
+      onHover:(evt,els,chart)=>{
+        if(!els.length||!S.hoverCtx) return;
+        const idx=els[0].index; chart._lastHoverIdx=idx;
+        showAnalysisPanel();
+        updateAnalysisPanel(idx, S.hoverCtx.st, S.hoverCtx.probs, S.hoverCtx.vLabels, S.hoverCtx.unit, S.hoverCtx.thr, S.hoverCtx.color);
+      },
+    }
+  });
+  document.getElementById('c-plume').onmouseleave=()=>hideAnalysisPanel();
+
+  // Probability chart
+  killChart('prob');
+  const tc=DARK()?'#8a8a82':'#6a6a64', gc=DARK()?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)';
+  S.charts.prob=new Chart(document.getElementById('c-prob').getContext('2d'),{
+    type:'bar',
+    data:{labels:lbl, datasets:probDatasets(probs)},
+    options:{
+      ...BASE_OPTS,
+      scales:{
+        x:{ticks:{color:tc,maxRotation:45,font:{size:11}},grid:{color:gc}},
+        y:{min:0,max:100,ticks:{color:tc,font:{size:11}},grid:{color:gc},
+           title:{display:true,text:'Wahrscheinlichkeit (%)',color:tc,font:{size:11}}}
+      },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} %`}}},
+      onHover:(evt,els,chart)=>{
+        if(!els.length||!S.hoverCtx) return;
+        const idx=els[0].index;
+        if(S.charts.plume) S.charts.plume._lastHoverIdx=idx;
+        showAnalysisPanel();
+        updateAnalysisPanel(idx, S.hoverCtx.st, S.hoverCtx.probs, S.hoverCtx.vLabels, S.hoverCtx.unit, S.hoverCtx.thr, S.hoverCtx.color);
+      },
+    }
+  });
+  document.getElementById('c-prob').onmouseleave=()=>hideAnalysisPanel();
+
+  // mouseleave → hide panel
+  ['c-plume','c-prob'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.onmouseleave=()=>hideAnalysisPanel();
+  });
+}
+
+function setCard(n,lbl,val,sub,valColor){
+  document.getElementById(`sc-lbl${n}`).textContent=lbl;
+  const v=document.getElementById(`sc-val${n}`);
+  v.textContent=val;
+  v.style.color=valColor||'var(--text)';
+  document.getElementById(`sc-sub${n}`).textContent=sub||'';
+}
+
+// ─────────────────────────────────────────────────────────────
+// ANALYSE-PANEL (standard tabs)
+// ─────────────────────────────────────────────────────────────
+let _hideTimer=null;
+function showAnalysisPanel(){
+  if(_hideTimer){ clearTimeout(_hideTimer); _hideTimer=null; }
+  document.getElementById('apanel').classList.add('visible');
+}
+function hideAnalysisPanel(){
+  if(S.pinned) return;
+  _hideTimer=setTimeout(()=>{ document.getElementById('apanel').classList.remove('visible'); _hideTimer=null; }, 300);
+}
+
+function togglePin(){
+  S.pinned=!S.pinned;
+  const btn=document.getElementById('ap-pin');
+  if(btn){ btn.classList.toggle('pinned', S.pinned); btn.textContent=S.pinned ? '📌 Angeheftet' : '📌 Anheften'; }
+}
+
+function updateAnalysisPanel(tIdx, st, probs, vLabels, unit, thr, color){
+  const panel=document.getElementById('apanel');
+  if(tIdx<0||tIdx>=st.median.length){ return; }
+  panel.classList.add('visible');
+
+  const iso=vLabels[tIdx];
+  if(iso){
+    const [d,t]=iso.split('T');
+    const [y,mo,dd]=d.split('-').map(Number);
+    const dt=new Date(y,mo-1,dd);
+    const dn=['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()];
+    document.getElementById('ap-time').innerHTML=
+      `${dn} ${dd}.${String(mo).padStart(2,'0')}.<br><span style="font-size:14px;color:var(--text);font-weight:700">${t.slice(0,5)} ${S.tz}</span>`;
+  }
+
+  const p10=st.p10[tIdx], p25=st.p25[tIdx], med=st.median[tIdx],
+        p75=st.p75[tIdx], p90=st.p90[tIdx];
+  const spread=(p10!==null&&p90!==null&&isFinite(p10)&&isFinite(p90))?p90-p10:null;
+  const prob=probs[tIdx];
+
+  document.getElementById('ap-p10').textContent=fmtVal(p10,unit);
+  document.getElementById('ap-p25').textContent=fmtVal(p25,unit);
+  document.getElementById('ap-med').textContent=fmtVal(med,unit);
+  document.getElementById('ap-p75').textContent=fmtVal(p75,unit);
+  document.getElementById('ap-p90').textContent=fmtVal(p90,unit);
+  document.getElementById('ap-spread').textContent=spread!==null?fmtVal(spread,unit):'—';
+  document.getElementById('ap-prob').textContent=prob!==null?`${prob} %`:'—';
+  document.getElementById('ap-plbl').textContent=`P(≥${fmtVal(thr,unit)})`;
+
+  const hi=document.querySelector('.astat.hi .av');
+  if(hi) hi.style.color=prob>=60?'var(--danger,#D85A30)':prob>=30?'var(--warning,#BA7517)':'var(--text)';
+
+  // Boxplot
+  const svg=document.getElementById('ap-box');
+  if(!svg) return;
+  const vals=[p10,p25,med,p75,p90];
+  if(vals.some(v=>v===null||!isFinite(v))){
+    svg.innerHTML='<text x="40" y="54" text-anchor="middle" font-size="9" fill="var(--muted)">n/v</text>';
+    return;
+  }
+  const lo=p10, hi2=p90, range=hi2-lo||1;
+  const toY=v=>10+(1-(v-lo)/range)*80;
+  const yP10=toY(p10),yP25=toY(p25),yMed=toY(med),yP75=toY(p75),yP90=toY(p90);
+  const cx=36,bw=28,x0=cx-bw/2,x1=cx+bw/2,col=color||'#3B8BD4';
+  const thrY=thr!==null&&thr>=lo&&thr<=hi2?toY(thr):null;
+  svg.innerHTML=`
+    <line x1="${cx}" y1="${yP10}" x2="${cx}" y2="${yP25}" stroke="${col}" stroke-width="1.5" opacity=".6"/>
+    <line x1="${cx}" y1="${yP75}" x2="${cx}" y2="${yP90}" stroke="${col}" stroke-width="1.5" opacity=".6"/>
+    <line x1="${cx-8}" y1="${yP10}" x2="${cx+8}" y2="${yP10}" stroke="${col}" stroke-width="1.5" opacity=".7"/>
+    <line x1="${cx-8}" y1="${yP90}" x2="${cx+8}" y2="${yP90}" stroke="${col}" stroke-width="1.5" opacity=".7"/>
+    <rect x="${x0}" y="${yP75}" width="${bw}" height="${Math.max(1,yP25-yP75)}" fill="${col}" opacity=".22" rx="2"/>
+    <rect x="${x0}" y="${yP75}" width="${bw}" height="${Math.max(1,yP25-yP75)}" fill="none" stroke="${col}" stroke-width="1.2" rx="2" opacity=".6"/>
+    <line x1="${x0}" y1="${yMed}" x2="${x1}" y2="${yMed}" stroke="${col}" stroke-width="3" stroke-linecap="round"/>
+    ${thrY!==null?`<line x1="${x0-5}" y1="${thrY}" x2="${x1+5}" y2="${thrY}" stroke="rgba(186,117,23,.9)" stroke-width="1.8" stroke-dasharray="3 2"/>`:``}
+    <text x="${x1+4}" y="${yP10+3}" font-size="8" fill="var(--muted)">P10</text>
+    <text x="${x1+4}" y="${yP90+3}" font-size="8" fill="var(--muted)">P90</text>
+  `;
+}
+
+// ─────────────────────────────────────────────────────────────
+// THRESHOLD SLIDER (standard tabs)
+// ─────────────────────────────────────────────────────────────
+function onThrSlide_std(v){
+  const td=TABS[S.activeTab];
+  if(!td) return;
+  const thr=parseFloat(v);
+  S.cfg[td.cfgKey]=thr;
+  document.getElementById('thr-disp').textContent=fmtVal(thr,td.unit);
+
+  const {members:vMembers}=viewSlice();
+  const ms=vMembers[td.apiVar];
+  if(!ms) return;
+  const effDir2 = REVERSIBLE_TABS.includes(S.activeTab) && S.tabDir[S.activeTab]
+    ? S.tabDir[S.activeTab] : td.dir;
+  const probs=exceedance(ms,thr,effDir2==='above');
+
+  if(S.charts.prob){ S.charts.prob.data.datasets=probDatasets(probs); S.charts.prob.update('none'); }
+  if(S.charts.plume){
+    const ds=S.charts.plume.data.datasets;
+    const last=ds[ds.length-1];
+    if(last&&last.label==='Schwelle'){ last.data=Array(ms[0].length).fill(thr); S.charts.plume.update('none'); }
+  }
+
+  if(S.hoverCtx){
+    S.hoverCtx.thr=thr; S.hoverCtx.probs=probs;
+    const panel=document.getElementById('apanel');
+    if(panel.classList.contains('visible')&&S.charts.plume){
+      const lastIdx=S.charts.plume._lastHoverIdx??-1;
+      if(lastIdx>=0) updateAnalysisPanel(lastIdx,S.hoverCtx.st,probs,S.hoverCtx.vLabels,S.hoverCtx.unit,thr,S.hoverCtx.color);
+    }
+  }
+
+  const maxP=Math.max(0,...probs.filter(p=>p!==null&&isFinite(p)));
+  const c2=maxP>=60?'#D85A30':maxP>=30?'#BA7517':'#3B6D11';
+  const ds2=effDir2==='above'?td.pLbl.replace(/≤/g,'≥'):td.pLbl.replace(/≥/g,'≤');
+  setCard(2,`${ds2} (${fmtVal(thr,td.unit)})`,`${maxP} %`,'Max. im Vorhersagezeitraum',c2);
+
+  const id=`c-${S.activeTab}`;
+  const inp=document.getElementById(id);
+  if(inp) inp.value=v;
+}
+
+// ─────────────────────────────────────────────────────────────
+// WMO → TAF WEATHER CODE
+// ─────────────────────────────────────────────────────────────
+const WMO_TO_TAF = {
+  0:'NSW', 1:'NSW', 2:'NSW', 3:'NSW',
+  45:'FG', 48:'FZFG',
+  51:'-DZ', 53:'DZ', 55:'+DZ', 56:'-FZDZ', 57:'FZDZ',
+  61:'-RA', 63:'RA', 65:'+RA', 66:'-FZRA', 67:'FZRA',
+  71:'-SN', 73:'SN', 75:'+SN', 77:'SG',
+  80:'-SHRA', 81:'SHRA', 82:'+SHRA', 83:'-SHRASN', 85:'-SHSN', 86:'SHSN',
+  95:'TSRA', 96:'TSGR', 99:'+TSGR',
+};
+
+function wmoToTaf(code){
+  if(code===null||code===undefined||isNaN(code)) return null;
+  return WMO_TO_TAF[Math.round(code)] ?? null;
+}
+
+const TAF_GROUPS = [
+  { label:'NSW',                   tafs:['NSW'],                                         color:'rgba(255,198,30,.85)'  },
+  { label:'FG',                    tafs:['FG'],                                          color:'rgba(180,175,160,.85)' },
+  { label:'DZ',                    tafs:['-DZ','DZ','+DZ'],                              color:'rgba(150,195,230,.85)' },
+  { label:'RA',                    tafs:['-RA','RA','+RA'],                              color:'rgba(30,100,200,.85)'  },
+  { label:'SN / SG',               tafs:['-SN','SN','+SN','SG'],                        color:'rgba(190,220,255,.85)' },
+  { label:'SHRA / SHSN',           tafs:['-SHRA','SHRA','+SHRA','-SHRASN','-SHSN','SHSN'], color:'rgba(180,130,210,.85)' },
+  { label:'⚠ FZFG / FZDZ / FZRA', tafs:['FZFG','-FZDZ','FZDZ','-FZRA','FZRA'],        color:'rgba(83,74,183,.85)'   },
+  { label:'⚠ TS / TSRA / TSGR',   tafs:['TS','TSRA','TSGR','+TSGR'],                   color:'rgba(163,45,45,.85)'   },
+  { label:'—',                     tafs:null,                                            color:'rgba(136,135,128,.38)' },
+];
+
+const WC_HAZARDS = [
+  { id:'ts',   tafs:['TS','TSRA','TSGR','+TSGR'],              color:'rgba(163,45,45,.82)'   },
+  { id:'fz',   tafs:['FZFG','-FZDZ','FZDZ','-FZRA','FZRA'],   color:'rgba(83,74,183,.82)'   },
+  { id:'hvy',  tafs:['+RA','+SN','+SHRA'],                     color:'rgba(24,95,165,.82)'   },
+  { id:'fg',   tafs:['FG'],                                    color:'rgba(150,145,130,.82)' },
+  { id:'fzfg', tafs:['FZFG'],                                  color:'rgba(83,74,183,.82)'   },
+];
+
+function tafGroup(tafCode){
+  if(!tafCode) return TAF_GROUPS[TAF_GROUPS.length-1];
+  for(const grp of TAF_GROUPS){ if(grp.tafs && grp.tafs.includes(tafCode)) return grp; }
+  return TAF_GROUPS[TAF_GROUPS.length-1];
+}
+
+function wcExceedance(wcMs, tafSet){
+  if(!wcMs?.length) return [];
+  const nm=wcMs.length;
+  return wcMs[0].map((_,t)=>{
+    const cnt=wcMs.map(m=>wmoToTaf(m[t])).filter(taf=>tafSet.includes(taf)).length;
+    return Math.round(cnt/nm*100);
+  });
+}
+
+function renderWC(){
+  document.getElementById('ph').style.display='none';
+  document.getElementById('std-content').style.display='none';
+  document.getElementById('cc-content').style.display='none';
+  document.getElementById('wind-content').style.display='none';
+  document.getElementById('compare-content').style.display='none';
+  document.getElementById('wc-content').style.display='block';
+  // Show compare-not-available hint for WC
+  const wcNotice=document.querySelector('#wc-content .notice');
+  // Compare-mode notice for WC tab
+  let wctop=document.getElementById('wc-cmp-notice');
+  if(S.compare&&Object.keys(S.members2).length>0){
+    if(!wctop){
+      wctop=document.createElement('div');
+      wctop.id='wc-cmp-notice';
+      wctop.className='notice';
+      wctop.style.marginBottom='10px';
+      document.getElementById('wc-content').prepend(wctop);
+    }
+    wctop.textContent='Wetterphänomene (TAF) sind kategorische Daten — Modellvergleich nicht sinnvoll. Einzelmodell-Ansicht wird angezeigt.';
+  } else if(wctop){
+    wctop.remove();
+  }
+
+  const {labels:vLabels, members:vMembers}=viewSlice();
+  const wcMs=vMembers['weather_code']||[];
+  const n=vLabels.length, nm=wcMs.length;
+
+  if(!nm){
+    document.getElementById('wc-content').style.display='none';
+    document.getElementById('ph').style.display='flex';
+    document.getElementById('ph').innerHTML='<div style="font-size:32px">⚠️</div>'
+      +'<div>weather_code nicht verfügbar in diesem Modell.</div>';
+    return;
+  }
+
+  const grpData=TAF_GROUPS.map(()=>[]);
+  const modeTafs=[], modeCounts=[];
+
+  for(let t=0;t<n;t++){
+    const grpCnt=TAF_GROUPS.map(()=>0);
+    const tafCnt={};
+    for(let m=0;m<nm;m++){
+      const taf=wmoToTaf(wcMs[m][t]);
+      grpCnt[TAF_GROUPS.indexOf(tafGroup(taf))]++;
+      const key=taf??'—'; tafCnt[key]=(tafCnt[key]||0)+1;
+    }
+    grpData.forEach((arr,i)=>arr.push(Math.round(grpCnt[i]/nm*100)));
+    const best=Object.entries(tafCnt).sort((a,b)=>b[1]-a[1])[0];
+    modeTafs.push(best?best[0]:null);
+    modeCounts.push(best?+best[1]:0);
+  }
+
+  const hazardProbs={};
+  WC_HAZARDS.forEach(h=>{ hazardProbs[h.id]=wcExceedance(wcMs,h.tafs); });
+
+  const maxTs=Math.max(0,...hazardProbs.ts.filter(isFinite));
+  const maxFz=Math.max(0,...hazardProbs.fz.filter(isFinite));
+  setCard(1,'Max. P(TS/TSRA/TSGR)',`${maxTs} %`,'im Vorhersagezeitraum',
+    maxTs>=50?'#D85A30':maxTs>=20?'#BA7517':'var(--text)');
+  setCard(2,'Max. P(FZ-Phänomene)',`${maxFz} %`,'im Vorhersagezeitraum',
+    maxFz>=30?'#534AB7':maxFz>=10?'#BA7517':'var(--text)');
+  setCard(3,'Member',`${nm}`,'mit Wettercode-Daten');
+
+  const lbl=chartLabels(vLabels);
+  const tc=DARK()?'#8a8a82':'#6a6a64', gc=DARK()?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)';
+
+  killChart('wc');
+  const wcDatasets=TAF_GROUPS.map((grp,i)=>({
+    label:grp.label, data:grpData[i], backgroundColor:grp.color, stack:'s',
+  })).filter((_,i)=>grpData[i].some(v=>v>0));
+
+  S.charts.wc=new Chart(document.getElementById('c-wc').getContext('2d'),{
+    type:'bar', data:{labels:lbl, datasets:wcDatasets},
+    options:{...BASE_OPTS,
+      scales:{
+        x:{stacked:true,ticks:{color:tc,maxRotation:45,font:{size:11}},grid:{color:gc}},
+        y:{stacked:true,min:0,max:100,ticks:{color:tc,font:{size:11}},grid:{color:gc},
+          title:{display:true,text:'Anteil Member [%]',color:tc,font:{size:11}}},
+      },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y} %`}}}
+    }
+  });
+
+  killChart('wc-mode');
+  S.charts['wc-mode']=new Chart(document.getElementById('c-wc-mode').getContext('2d'),{
+    type:'bar',
+    data:{labels:lbl, datasets:[{
+      data:modeTafs.map(()=>1),
+      backgroundColor:modeTafs.map(taf=>tafGroup(taf).color),
+      borderWidth:0, barPercentage:1, categoryPercentage:1,
+    }]},
+    options:{...BASE_OPTS,
+      scales:{x:{display:false},y:{display:false,min:0,max:1}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        label:ctx=>{ const taf=modeTafs[ctx.dataIndex]; const pct=nm>0?Math.round(modeCounts[ctx.dataIndex]/nm*100):0; return `Modus: ${taf??'—'}  (${pct} % der Member)`; },
+        title:ctx=>[lbl[ctx[0].dataIndex]||''],
+      }}}
+    }
+  });
+
+  WC_HAZARDS.forEach(h=>{
+    killChart('wc-'+h.id);
+    const probs=hazardProbs[h.id];
+    S.charts['wc-'+h.id]=new Chart(document.getElementById('c-wc-'+h.id).getContext('2d'),{
+      type:'bar',
+      data:{labels:lbl, datasets:[{
+        data:probs,
+        backgroundColor:probs.map(p=>p>=60?'rgba(163,45,45,.85)':p>=30?'rgba(186,117,23,.82)':h.color),
+        borderRadius:3, borderWidth:0, barPercentage:.85,
+      }]},
+      options:{...BASE_OPTS,
+        scales:{
+          x:{ticks:{color:tc,maxRotation:45,font:{size:10}},grid:{color:gc}},
+          y:{min:0,max:100,ticks:{color:tc,font:{size:10}},grid:{color:gc},
+            title:{display:true,text:'P [%]',color:tc,font:{size:10}}},
+        },
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} %`}}}
+      }
+    });
+  });
+
+  const legendEl=document.getElementById('wc-legend');
+  legendEl.innerHTML=wcDatasets.map(ds=>
+    `<div class="li"><div class="lb" style="background:${ds.backgroundColor}"></div>${ds.label}</div>`
+  ).join('');
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// BEWÖLKUNG TAB (special: total always + layers when available)
+// ─────────────────────────────────────────────────────────────
+let _ccHideTimer=null, _ccPinned=false;
+function showCCPanel(){ if(_ccHideTimer){clearTimeout(_ccHideTimer);_ccHideTimer=null;} document.getElementById('apanel-cc').classList.add('visible'); }
+function hideCCPanel(){ if(_ccPinned) return; _ccHideTimer=setTimeout(()=>{document.getElementById('apanel-cc').classList.remove('visible');_ccHideTimer=null;},300); }
+function toggleCCPin(){ _ccPinned=!_ccPinned; const btn=document.getElementById('ap-cc-pin'); btn.classList.toggle('pinned',_ccPinned); btn.textContent=_ccPinned?'📌 Angeheftet':'📌 Anheften'; }
+
+function onCCThrSlide(v){
+  v=parseFloat(v);
+  S.cfg.cloudcover=v;
+  document.getElementById('cc-thr-disp').textContent=fmtVal(v,'%');
+  document.getElementById('ap-cc-plbl').textContent=`P(≥${fmtVal(v,'%')})`;
+  const {members:vM}=viewSlice();
+  const ms=vM['cloud_cover'];
+  if(!ms) return;
+  const probs=exceedance(ms,v,true);
+  if(S.charts['cc-total-prob']){
+    S.charts['cc-total-prob'].data.datasets=probDatasets(probs);
+    S.charts['cc-total-prob'].update('none');
+  }
+  if(S.charts['cc-total-plume']){
+    const ds=S.charts['cc-total-plume'].data.datasets;
+    const last=ds[ds.length-1];
+    if(last&&last.label==='Schwelle'){last.data=Array(ms[0].length).fill(v);S.charts['cc-total-plume'].update('none');}
+  }
+  if(S.hoverCtxCC){ S.hoverCtxCC.thr=v; S.hoverCtxCC.probs=probs; }
+}
+
+function updateCCAnalysisPanel(tIdx, st, probs, vLabels, thr){
+  const panel=document.getElementById('apanel-cc');
+  if(tIdx<0||tIdx>=st.median.length) return;
+  panel.classList.add('visible');
+  const iso=vLabels[tIdx];
+  if(iso){
+    const [d,t]=iso.split('T');
+    const [y,mo,dd]=d.split('-').map(Number);
+    const dt=new Date(y,mo-1,dd);
+    const dn=['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()];
+    document.getElementById('ap-cc-time').innerHTML=`${dn} ${dd}.${String(mo).padStart(2,'0')}.<br><span style="font-size:14px;color:var(--text);font-weight:700">${t.slice(0,5)} ${S.tz}</span>`;
+  }
+  const p10=st.p10[tIdx],p25=st.p25[tIdx],med=st.median[tIdx],p75=st.p75[tIdx],p90=st.p90[tIdx];
+  const spread=(p10!==null&&p90!==null&&isFinite(p10)&&isFinite(p90))?p90-p10:null;
+  const prob=probs[tIdx];
+  document.getElementById('ap-cc-p10').textContent=fmtVal(p10,'%');
+  document.getElementById('ap-cc-p25').textContent=fmtVal(p25,'%');
+  document.getElementById('ap-cc-med').textContent=fmtVal(med,'%');
+  document.getElementById('ap-cc-p75').textContent=fmtVal(p75,'%');
+  document.getElementById('ap-cc-p90').textContent=fmtVal(p90,'%');
+  document.getElementById('ap-cc-spread').textContent=spread!==null?fmtVal(spread,'%'):'—';
+  document.getElementById('ap-cc-prob').textContent=prob!==null?`${prob} %`:'—';
+  const hi=document.querySelector('#apanel-cc .astat.hi .av');
+  if(hi) hi.style.color=prob>=60?'var(--danger,#D85A30)':prob>=30?'var(--warning,#BA7517)':'var(--text)';
+  // Boxplot
+  const svg=document.getElementById('ap-cc-box');
+  if(!svg) return;
+  const vals=[p10,p25,med,p75,p90];
+  if(vals.some(v=>v===null||!isFinite(v))){ svg.innerHTML='<text x="40" y="54" text-anchor="middle" font-size="9" fill="var(--muted)">n/v</text>'; return; }
+  const lo=p10,hi2=p90,range=hi2-lo||1;
+  const toY=v=>10+(1-(v-lo)/range)*80;
+  const yP10=toY(p10),yP25=toY(p25),yMed=toY(med),yP75=toY(p75),yP90=toY(p90);
+  const cx=36,bw=28,x0=cx-bw/2,x1=cx+bw/2,col='#888780';
+  const thrY=thr!==null&&thr>=lo&&thr<=hi2?toY(thr):null;
+  svg.innerHTML=`<line x1="${cx}" y1="${yP10}" x2="${cx}" y2="${yP25}" stroke="${col}" stroke-width="1.5" opacity=".6"/>
+    <line x1="${cx}" y1="${yP75}" x2="${cx}" y2="${yP90}" stroke="${col}" stroke-width="1.5" opacity=".6"/>
+    <line x1="${cx-8}" y1="${yP10}" x2="${cx+8}" y2="${yP10}" stroke="${col}" stroke-width="1.5" opacity=".7"/>
+    <line x1="${cx-8}" y1="${yP90}" x2="${cx+8}" y2="${yP90}" stroke="${col}" stroke-width="1.5" opacity=".7"/>
+    <rect x="${x0}" y="${yP75}" width="${bw}" height="${Math.max(1,yP25-yP75)}" fill="${col}" opacity=".22" rx="2"/>
+    <rect x="${x0}" y="${yP75}" width="${bw}" height="${Math.max(1,yP25-yP75)}" fill="none" stroke="${col}" stroke-width="1.2" rx="2" opacity=".6"/>
+    <line x1="${x0}" y1="${yMed}" x2="${x1}" y2="${yMed}" stroke="${col}" stroke-width="3" stroke-linecap="round"/>
+    ${thrY!==null?`<line x1="${x0-5}" y1="${thrY}" x2="${x1+5}" y2="${thrY}" stroke="rgba(186,117,23,.9)" stroke-width="1.8" stroke-dasharray="3 2"/>`:``}
+    <text x="${x1+4}" y="${yP10+3}" font-size="8" fill="var(--muted)">P10</text>
+    <text x="${x1+4}" y="${yP90+3}" font-size="8" fill="var(--muted)">P90</text>`;
+}
+
+function renderCloudcover(){
+  document.getElementById('ph').style.display='none';
+  document.getElementById('std-content').style.display='none';
+  document.getElementById('wc-content').style.display='none';
+  document.getElementById('wind-content').style.display='none';
+  document.getElementById('compare-content').style.display='none';
+  document.getElementById('cc-content').style.display='block';
+  document.getElementById('apanel-cc').classList.remove('visible');
+  _ccPinned=false;
+  const pinBtn=document.getElementById('ap-cc-pin');
+  if(pinBtn){pinBtn.classList.remove('pinned');pinBtn.textContent='📌 Anheften';}
+
+  const {labels:vLabels, members:vM}=viewSlice();
+  const ms=vM['cloud_cover'];
+  if(!ms?.length){
+    document.getElementById('cc-content').style.display='none';
+    document.getElementById('ph').style.display='flex';
+    document.getElementById('ph').innerHTML='<div style="font-size:32px">⚠️</div><div>Gesamtbedeckung nicht verfügbar.</div>';
+    return;
+  }
+
+  const thr=S.cfg.cloudcover;
+  const st=stats(ms);
+  const probs=exceedance(ms,thr,true);
+  const lbl=chartLabels(vLabels);
+  const tc=DARK()?'#8a8a82':'#6a6a64', gc=DARK()?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)';
+
+  // Update slider display
+  document.getElementById('cc-thr-slider').value=thr;
+  document.getElementById('cc-thr-disp').textContent=fmtVal(thr,'%');
+  document.getElementById('ap-cc-plbl').textContent=`P(≥${fmtVal(thr,'%')})`;
+
+  // Stat cards
+  const validMed=st.median.filter(v=>v!==null&&isFinite(v));
+  const maxMed=validMed.length?Math.max(...validMed):null;
+  const maxP=probs.filter(p=>p!==null&&isFinite(p)).reduce((a,b)=>Math.max(a,b),0);
+  const spreadVals=st.p10.map((v,i)=>v!==null&&isFinite(v)&&st.p90[i]!==null&&isFinite(st.p90[i])?st.p90[i]-v:null).filter(v=>v!==null);
+  setCard(1,'Median-Maximum',maxMed!==null?fmtVal(maxMed,'%'):'n/v','im Vorhersagezeitraum');
+  setCard(2,`P(Bedeckung ≥ ${fmtVal(thr,'%')})`,`${maxP} %`,'Max. im Vorhersagezeitraum',maxP>=60?'#D85A30':maxP>=30?'#BA7517':'var(--text)');
+  setCard(3,'Ensemble-Spread (P90–P10)',spreadVals.length?fmtVal(Math.max(...spreadVals),'%'):'n/v','Max. im Vorhersagezeitraum');
+
+  // Plume
+  ['cc-total-plume','cc-total-prob','cc-low','cc-mid','cc-high'].forEach(k=>killChart(k));
+  S.hoverCtxCC={st,probs,vLabels,thr};
+
+  S.charts['cc-total-plume']=new Chart(document.getElementById('c-cc-total-plume').getContext('2d'),{
+    type:'line', data:{labels:lbl, datasets:plumeDatasets(ms,st,'#888780',thr)},
+    options:{...BASE_OPTS, scales:axisOpts('Bedeckung (%)'),
+      plugins:{legend:{display:false},tooltip:{filter:i=>i.dataset.label==='Median',callbacks:{label:ctx=>`Median: ${fmtVal(ctx.parsed.y,'%')}`}}},
+      onHover:(evt,els,chart)=>{
+        if(!els.length||!S.hoverCtxCC) return;
+        const idx=els[0].index; chart._lastHoverIdx=idx;
+        showCCPanel(); updateCCAnalysisPanel(idx,S.hoverCtxCC.st,S.hoverCtxCC.probs,S.hoverCtxCC.vLabels,S.hoverCtxCC.thr);
+      },
+    }
+  });
+  document.getElementById('c-cc-total-plume').onmouseleave=()=>hideCCPanel();
+
+  S.charts['cc-total-prob']=new Chart(document.getElementById('c-cc-total-prob').getContext('2d'),{
+    type:'bar', data:{labels:lbl, datasets:probDatasets(probs)},
+    options:{...BASE_OPTS,
+      scales:{x:{ticks:{color:tc,maxRotation:45,font:{size:11}},grid:{color:gc}},
+        y:{min:0,max:100,ticks:{color:tc,font:{size:11}},grid:{color:gc},title:{display:true,text:'Wahrscheinlichkeit (%)',color:tc,font:{size:11}}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} %`}}},
+      onHover:(evt,els,chart)=>{
+        if(!els.length||!S.hoverCtxCC) return;
+        const idx=els[0].index;
+        showCCPanel(); updateCCAnalysisPanel(idx,S.hoverCtxCC.st,S.hoverCtxCC.probs,S.hoverCtxCC.vLabels,S.hoverCtxCC.thr);
+      },
+    }
+  });
+  document.getElementById('c-cc-total-prob').onmouseleave=()=>hideCCPanel();
+
+  // Layers
+  const layerColors={'cloudcover_low':'#888780','cloudcover_mid':'#5F5E5A','cloudcover_high':'#444441'};
+  const layerIds=['cc-low','cc-mid','cc-high'];
+  const layerVars=['cloudcover_low','cloudcover_mid','cloudcover_high'];
+  const hasLayers=layerVars.some(v=>hasData(v));
+  document.getElementById('cc-layers').style.display=hasLayers?'block':'none';
+
+  if(hasLayers){
+    layerVars.forEach((v,i)=>{
+      const lms=vM[v];
+      if(!lms?.length) return;
+      const lst=stats(lms);
+      S.charts[layerIds[i]]=new Chart(document.getElementById('c-'+layerIds[i]).getContext('2d'),{
+        type:'line', data:{labels:lbl, datasets:plumeDatasets(lms,lst,layerColors[v],null)},
+        options:{...BASE_OPTS, scales:axisOpts('Bedeckung (%)'),
+          plugins:{legend:{display:false},tooltip:{enabled:false}}}
+      });
+    });
+  }
+
+  // Notice
+  const availLayers=layerVars.filter(v=>hasData(v)).map(v=>v.replace('cloudcover_',''));
+  document.getElementById('cc-notice').textContent=hasLayers
+    ?`Gesamtbedeckung + Schichten verfügbar: ${availLayers.join(', ')}.`
+    :'Gesamtbedeckung verfügbar. Einzelschichten (low/mid/high) nicht verfügbar in diesem Modell.';
+}
+
+// ─────────────────────────────────────────────────────────────
+// WIND COMBO TAB
+// ─────────────────────────────────────────────────────────────
+let _windHideTimer=null, _windPinned=false;
+let S_windBin=45, S_windCtx=null;
+
+function showWindPanel(){ if(_windHideTimer){clearTimeout(_windHideTimer);_windHideTimer=null;} document.getElementById('apanel-wind').classList.add('visible'); }
+function hideWindPanel(){ if(_windPinned) return; _windHideTimer=setTimeout(()=>{document.getElementById('apanel-wind').classList.remove('visible');_windHideTimer=null;},300); }
+function toggleWindPin(){ _windPinned=!_windPinned; const btn=document.getElementById('ap-wind-pin'); btn.classList.toggle('pinned',_windPinned); btn.textContent=_windPinned?'📌 Angeheftet':'📌 Anheften'; }
+
+function setWindBin(deg){
+  S_windBin=deg;
+  ['bin-45','bin-22','bin-10'].forEach(id=>document.getElementById(id).classList.remove('on'));
+  const map={45:'bin-45', 22.5:'bin-22', 10:'bin-10'};
+  document.getElementById(map[deg])?.classList.add('on');
+  renderWindDir();
+}
+
+function onWindThrSlide(v){
+  v=parseFloat(v);
+  S.cfg.wind=v;
+  document.getElementById('wind-thr-disp').textContent=fmtVal(v,'kt');
+  document.getElementById('ap-wind-plbl').textContent=`P(≥${fmtVal(v,'kt')})`;
+  if(!S_windCtx) return;
+  const {sMs,st,vLabels}=S_windCtx;
+  const probs1=exceedance(sMs,v,true);
+  S_windCtx.probs=probs1; S_windCtx.thr=v;
+
+  // Update threshold line in plume
+  if(S.charts['wind-speed']){
+    const ds=S.charts['wind-speed'].data.datasets;
+    const last=ds[ds.length-1];
+    if(last&&last.label==='Schwelle'){last.data=Array(sMs[0].length).fill(v);S.charts['wind-speed'].update('none');}
+  }
+
+  const maxP1=Math.max(0,...probs1.filter(isFinite));
+
+  // Update compare P-charts if visible
+  if(S.compare&&S.charts['wind-cmp-prob1']){
+    S.charts['wind-cmp-prob1'].data.datasets=probDatasets(probs1);
+    S.charts['wind-cmp-prob1'].update('none');
+    // Update prob2 title
+    const t1=document.querySelector('#wind-prob-panels .cmp-panels .panel:first-child .ptitle');
+    if(t1) t1.textContent=`P(Wind ≥ ${fmtVal(v,'kt')}) — ${modelShortLabel('in-model')}`;
+
+    // Recompute M2 probs
+    const start=S.view.start, end=S.view.end??S.labels.length;
+    const sMs2raw=S.members2['windspeed_10m'];
+    const sMs2=sMs2raw?.map(m=>m.slice(start,end??undefined));
+    if(sMs2?.length&&sMs2.some(m=>m.some(v2=>v2!==null&&isFinite(v2)))){
+      const probs2=exceedance(sMs2,v,true);
+      const p2c=probs2.map(p=>p===null?'rgba(136,135,128,.4)':p>=60?'rgba(163,45,45,.82)':p>=30?'rgba(83,74,183,.7)':'rgba(83,74,183,.38)');
+      if(S.charts['wind-cmp-prob2']){
+        S.charts['wind-cmp-prob2'].data.datasets=[{data:probs2,backgroundColor:p2c,borderRadius:3,borderWidth:0,barPercentage:.85}];
+        S.charts['wind-cmp-prob2'].update('none');
+      }
+      const t2=document.querySelector('#wind-prob-panels .cmp-panels .panel:last-child .ptitle');
+      if(t2) t2.textContent=`P(Wind ≥ ${fmtVal(v,'kt')}) — ${modelShortLabel('in-model2')}`;
+      const maxP2=Math.max(0,...probs2.filter(isFinite));
+      setCard(2,`P(≥${fmtVal(v,'kt')}): ${modelShortLabel('in-model')} / ${modelShortLabel('in-model2')}`,
+        `${maxP1} % / ${maxP2} %`,'Max. im Vorhersagezeitraum',
+        Math.abs(maxP1-maxP2)>20?'#D85A30':undefined);
+    }
+  } else {
+    // Single model — update P-chart
+    if(S.charts['wind-prob']){
+      S.charts['wind-prob'].data.datasets=probDatasets(probs1);
+      S.charts['wind-prob'].update('none');
+    }
+    document.getElementById('wind-prob-title').textContent=`P(Wind ≥ ${fmtVal(v,'kt')})`;
+    setCard(2,`P(Wind ≥ ${fmtVal(v,'kt')})`,`${maxP1} %`,'Max. im Vorhersagezeitraum',maxP1>=60?'#D85A30':maxP1>=30?'#BA7517':'#3B6D11');
+  }
+}
+
+function updateWindAnalysis(tIdx, sMs, st, probs, vLabels, thr){
+  const panel=document.getElementById('apanel-wind');
+  if(tIdx<0||tIdx>=st.median.length) return;
+  panel.classList.add('visible');
+  const iso=vLabels[tIdx];
+  if(iso){
+    const [d,t]=iso.split('T');
+    const [y,mo,dd]=d.split('-').map(Number);
+    const dt=new Date(y,mo-1,dd);
+    const dn=['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()];
+    document.getElementById('ap-wind-time').innerHTML=`${dn} ${dd}.${String(mo).padStart(2,'0')}.<br><span style="font-size:14px;color:var(--text);font-weight:700">${t.slice(0,5)} ${S.tz}</span>`;
+  }
+  const p10=st.p10[tIdx],p25=st.p25[tIdx],med=st.median[tIdx],p75=st.p75[tIdx],p90=st.p90[tIdx];
+  const spread=(p10!=null&&p90!=null&&isFinite(p10)&&isFinite(p90))?p90-p10:null;
+  const prob=probs[tIdx];
+  document.getElementById('ap-wind-p10').textContent=fmtVal(p10,'kt');
+  document.getElementById('ap-wind-p25').textContent=fmtVal(p25,'kt');
+  document.getElementById('ap-wind-med').textContent=fmtVal(med,'kt');
+  document.getElementById('ap-wind-p75').textContent=fmtVal(p75,'kt');
+  document.getElementById('ap-wind-p90').textContent=fmtVal(p90,'kt');
+  document.getElementById('ap-wind-spread').textContent=spread!=null?fmtVal(spread,'kt'):'—';
+  document.getElementById('ap-wind-prob').textContent=prob!=null?`${prob} %`:'—';
+  const hi=document.querySelector('#apanel-wind .astat.hi .av');
+  if(hi) hi.style.color=prob>=60?'var(--danger,#D85A30)':prob>=30?'var(--warning,#BA7517)':'var(--text)';
+  // Boxplot
+  const svg=document.getElementById('ap-wind-box');
+  if(!svg) return;
+  const vals=[p10,p25,med,p75,p90];
+  if(vals.some(v=>v===null||!isFinite(v))){ svg.innerHTML='<text x="40" y="54" text-anchor="middle" font-size="9" fill="var(--muted)">n/v</text>'; return; }
+  const lo=p10,hi2=p90,range=hi2-lo||1,toY=v=>10+(1-(v-lo)/range)*80;
+  const yP10=toY(p10),yP25=toY(p25),yMed=toY(med),yP75=toY(p75),yP90=toY(p90);
+  const cx=36,bw=28,x0=cx-bw/2,x1=cx+bw/2,col='#3B8BD4';
+  const thrY=thr!=null&&thr>=lo&&thr<=hi2?toY(thr):null;
+  svg.innerHTML=`<line x1="${cx}" y1="${yP10}" x2="${cx}" y2="${yP25}" stroke="${col}" stroke-width="1.5" opacity=".6"/>
+    <line x1="${cx}" y1="${yP75}" x2="${cx}" y2="${yP90}" stroke="${col}" stroke-width="1.5" opacity=".6"/>
+    <line x1="${cx-8}" y1="${yP10}" x2="${cx+8}" y2="${yP10}" stroke="${col}" stroke-width="1.5" opacity=".7"/>
+    <line x1="${cx-8}" y1="${yP90}" x2="${cx+8}" y2="${yP90}" stroke="${col}" stroke-width="1.5" opacity=".7"/>
+    <rect x="${x0}" y="${yP75}" width="${bw}" height="${Math.max(1,yP25-yP75)}" fill="${col}" opacity=".22" rx="2"/>
+    <rect x="${x0}" y="${yP75}" width="${bw}" height="${Math.max(1,yP25-yP75)}" fill="none" stroke="${col}" stroke-width="1.2" rx="2" opacity=".6"/>
+    <line x1="${x0}" y1="${yMed}" x2="${x1}" y2="${yMed}" stroke="${col}" stroke-width="3" stroke-linecap="round"/>
+    ${thrY!=null?`<line x1="${x0-5}" y1="${thrY}" x2="${x1+5}" y2="${thrY}" stroke="rgba(186,117,23,.9)" stroke-width="1.8" stroke-dasharray="3 2"/>`:``}
+    <text x="${x1+4}" y="${yP10+3}" font-size="8" fill="var(--muted)">P10</text>
+    <text x="${x1+4}" y="${yP90+3}" font-size="8" fill="var(--muted)">P90</text>`;
+}
+
+// ── Shared crosshair state ────────────────────────────────────
+let _windCrosshairIdx = -1;       // current hovered time index
+let _heatmapImageData = null;     // snapshot of heatmap without crosshair
+let _heatmapMeta = null;          // {plotX, plotW, nT} for coordinate mapping
+
+function windCrosshairSet(tIdx){
+  if(tIdx === _windCrosshairIdx) return;
+  _windCrosshairIdx = tIdx;
+  drawHeatmapCrosshair(tIdx);
+  // Trigger Chart.js tooltip at same index
+  const chart = S.charts['wind-speed'];
+  if(chart && tIdx >= 0){
+    const meta = chart.getDatasetMeta(chart.data.datasets.length - 2); // Median dataset
+    const pt = meta?.data?.[tIdx];
+    if(pt){
+      chart.tooltip.setActiveElements(
+        [{datasetIndex: chart.data.datasets.length - 2, index: tIdx}],
+        {x: pt.x, y: pt.y}
+      );
+      chart.update('none');
+    }
+  }
+  // Update analysis panel if visible
+  if(S_windCtx && tIdx >= 0 && document.getElementById('apanel-wind').classList.contains('visible')){
+    updateWindAnalysis(tIdx, S_windCtx.sMs, S_windCtx.st, S_windCtx.probs, S_windCtx.vLabels, S_windCtx.thr);
+  }
+}
+
+function windCrosshairClear(){
+  _windCrosshairIdx = -1;
+  drawHeatmapCrosshair(-1);
+  const chart = S.charts['wind-speed'];
+  if(chart){ chart.tooltip.setActiveElements([], {}); chart.update('none'); }
+}
+
+function drawHeatmapCrosshair(tIdx){
+  const canvas = document.getElementById('c-wind-dir');
+  if(!canvas || !_heatmapImageData || !_heatmapMeta) return;
+  const ctx = canvas.getContext('2d');
+  // Restore clean heatmap
+  ctx.putImageData(_heatmapImageData, 0, 0);
+  if(tIdx < 0 || tIdx >= _heatmapMeta.nT) return;
+  // Draw vertical crosshair line
+  const {plotX, plotW, nT, plotY, plotH} = _heatmapMeta;
+  const cellW = plotW / nT;
+  const x = plotX + tIdx * cellW + cellW / 2;
+  const isDark = DARK();
+  ctx.save();
+  ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.moveTo(x, plotY);
+  ctx.lineTo(x, plotY + plotH);
+  ctx.stroke();
+  // Time label at bottom
+  if(S_windCtx?.vLabels?.[tIdx]){
+    const iso = S_windCtx.vLabels[tIdx];
+    const hh = iso.split('T')[1]?.slice(0,5) || '';
+    ctx.setLineDash([]);
+    ctx.font = 'bold 9px system-ui,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)';
+    const labelX = Math.max(20, Math.min(canvas.width - 20, x));
+    ctx.fillRect(labelX - 14, canvas.height - 14, 28, 12);
+    ctx.fillStyle = isDark ? '#1a1a18' : '#ffffff';
+    ctx.fillText(hh, labelX, canvas.height - 4);
+  }
+  ctx.restore();
+}
+
+// ── Circular-aware active range ────────────────────────────────
+function circularActiveRange(dMs){
+  // Find the smallest arc that contains all member direction values
+  const allDirs=dMs.flat().filter(v=>v!=null&&isFinite(v));
+  if(!allDirs.length) return {minD:0,maxD:360,span:360};
+  // Try all possible "gaps" — the largest gap between sorted directions
+  // defines the complement = the active arc
+  const sorted=[...new Set(allDirs.map(d=>Math.round(d)))].sort((a,b)=>a-b);
+  if(sorted.length===1) return {minD:sorted[0]-5,maxD:sorted[0]+5,span:10};
+  // Find largest gap
+  let maxGap=0, gapAfterIdx=0;
+  for(let i=0;i<sorted.length;i++){
+    const next=sorted[(i+1)%sorted.length];
+    const gap= i<sorted.length-1 ? next-sorted[i] : 360-sorted[i]+sorted[0];
+    if(gap>maxGap){maxGap=gap; gapAfterIdx=i;}
+  }
+  // Active arc starts after the gap
+  const startD=(sorted[gapAfterIdx]+1)%360;
+  const span=360-maxGap;
+  const endD=(startD+span)%360;
+  return {startD, endD, span: Math.ceil(span)+10}; // +10° padding
+}
+
+// ── Heatmap renderer ───────────────────────────────────────────
+function renderWindDir(){
+  if(!S_windCtx) return;
+  const {dMs,vLabels}=S_windCtx;
+  if(!dMs?.length) return;
+
+  const canvas=document.getElementById('c-wind-dir');
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.parentElement.clientWidth||600;
+  const H=200;
+  canvas.width=W; canvas.height=H;
+
+  const nBins=Math.round(360/S_windBin);
+  const nm=dMs.length, nT=dMs[0].length;
+  const isDark=DARK();
+  const bg=isDark?'#242422':'#f8f7f4';
+
+  // Determine Y range
+  const doZoom=document.getElementById('dir-zoom')?.checked;
+  let yMin=0, yMax=360;
+  if(doZoom){
+    const arc=circularActiveRange(dMs);
+    if(arc.span<330){
+      // Find the canonical start (handle wrap)
+      yMin=((arc.startD-5)+360)%360;
+      yMax=yMin+arc.span;
+    }
+  }
+  const yRange=yMax-yMin||360;
+
+  // Label area
+  const labelW=34, labelH=16;
+  const plotX=labelW, plotY=labelH, plotW=W-labelW-4, plotH=H-labelH-4;
+  const cellW=plotW/nT;
+
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  // Compute bin counts per timestep
+  for(let t=0;t<nT;t++){
+    const bins=new Array(nBins).fill(0);
+    for(let m=0;m<nm;m++){
+      const d=dMs[m][t];
+      if(d==null||!isFinite(d)) continue;
+      const bin=Math.floor(((d%360)+360)%360/S_windBin)%nBins;
+      bins[bin]++;
+    }
+    // Draw cells
+    for(let b=0;b<nBins;b++){
+      const binDeg=b*S_windBin+S_windBin/2; // centre of bin
+      if(doZoom){
+        // normalise to yMin..yMax (circular)
+        let rel=((binDeg-yMin)+360)%360;
+        if(rel>yRange+S_windBin) continue; // outside visible range
+      }
+      const pct=bins[b]/nm;
+      if(pct===0) continue;
+      // Map bin centre degree to Y pixel
+      let degRel=doZoom ? ((binDeg-yMin+360)%360) : binDeg;
+      const y=plotY+plotH-(degRel/yRange)*plotH;
+      const cellH=Math.max(1,(S_windBin/yRange)*plotH);
+      const x=plotX+t*cellW;
+      // Color: accent with alpha proportional to pct
+      const alpha=0.15+pct*0.85;
+      ctx.fillStyle=isDark
+        ?`rgba(59,139,212,${alpha})`
+        :`rgba(24,95,165,${alpha})`;
+      ctx.fillRect(x, y-cellH/2, Math.max(1,cellW-0.5), cellH);
+    }
+  }
+
+  // Y axis labels (direction)
+  ctx.font=`9px system-ui,sans-serif`;
+  ctx.fillStyle=isDark?'#8a8a82':'#6a6a64';
+  ctx.textAlign='right';
+  const DIRS=['N','NNO','NO','ONO','O','OSO','SO','SSO','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  const labelStep = yRange>180 ? 45 : yRange>90 ? 22.5 : 10;
+  for(let deg=0; deg<=yRange; deg+=labelStep){
+    const absDeg=(yMin+deg+360)%360;
+    const y=plotY+plotH-(deg/yRange)*plotH;
+    const lbl=DIRS[Math.round(absDeg/22.5)%16];
+    ctx.fillText(lbl, labelW-2, y+3);
+    // Tick
+    ctx.strokeStyle=isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)';
+    ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(plotX,y); ctx.lineTo(plotX+plotW,y); ctx.stroke();
+  }
+
+  // X axis: time labels
+  ctx.textAlign='center';
+  const step=Math.max(1,Math.floor(nT/12));
+  for(let t=0;t<nT;t+=step){
+    const iso=vLabels[t];
+    if(!iso) continue;
+    const hh=iso.split('T')[1]?.slice(0,5)||'';
+    const x=plotX+t*cellW+cellW/2;
+    ctx.fillText(hh, x, H-2);
+  }
+
+  // Save snapshot for crosshair overlay
+  _heatmapImageData = ctx.getImageData(0, 0, W, H);
+  _heatmapMeta = {plotX, plotW, nT, plotY, plotH};
+
+  // Wire heatmap mouse events (replace each time to avoid duplicate listeners)
+  canvas.onmousemove = (e)=>{
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const tIdx = Math.floor((mx - plotX) / (plotW / nT));
+    if(tIdx >= 0 && tIdx < nT){
+      showWindPanel();
+      windCrosshairSet(tIdx);
+    }
+  };
+  canvas.onmouseleave = ()=>{
+    hideWindPanel();
+    windCrosshairClear();
+  };
+}
+
+// ── Wind Rose (aggregated) ─────────────────────────────────────
+function renderWindRose(sMs, dMs){
+  const canvas=document.getElementById('c-wind-rose');
+  if(!canvas) return;
+  const W=canvas.parentElement.clientWidth||300;
+  const H=260;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  const isDark=DARK();
+  const bg=isDark?'#242422':'#f8f7f4';
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  // 16 sectors, 3 speed bands: calm(<5kt), moderate(5-15kt), strong(>15kt)
+  const nSec=16, secDeg=360/nSec;
+  const bands=[
+    {max:5,  color:isDark?'rgba(59,139,212,.4)':'rgba(24,95,165,.3)'},
+    {max:15, color:isDark?'rgba(59,139,212,.7)':'rgba(24,95,165,.6)'},
+    {max:999,color:isDark?'rgba(59,139,212,1)' :'rgba(24,95,165,.9)'},
+  ];
+  const counts=Array.from({length:nSec},()=>new Array(bands.length).fill(0));
+  let total=0;
+
+  const nm=sMs?.length||0, nT=dMs?.[0]?.length||0;
+  for(let m=0;m<nm;m++){
+    for(let t=0;t<nT;t++){
+      const d=dMs[m]?.[t], s=sMs[m]?.[t];
+      if(d==null||!isFinite(d)||s==null||!isFinite(s)) continue;
+      const sec=Math.floor(((d+360+secDeg/2)%360)/secDeg)%nSec;
+      const bi=bands.findIndex(b=>s<b.max);
+      counts[sec][bi>=0?bi:bands.length-1]++;
+      total++;
+    }
+  }
+  if(!total) return;
+
+  const cx=W/2, cy=H/2-8;
+  const maxPct=Math.max(...counts.map(s=>s.reduce((a,b)=>a+b,0)))/total;
+  const R=Math.min(cx,cy)-28;
+
+  // Grid circles
+  const rings=[0.25,0.5,0.75,1];
+  ctx.strokeStyle=isDark?'rgba(255,255,255,.08)':'rgba(0,0,0,.08)';
+  ctx.lineWidth=0.5;
+  rings.forEach(r=>{
+    ctx.beginPath(); ctx.arc(cx,cy,R*r,0,Math.PI*2); ctx.stroke();
+    const pctLbl=Math.round(r*maxPct*100)+'%';
+    ctx.fillStyle=isDark?'#888780':'#8a8a82';
+    ctx.font='8px system-ui,sans-serif'; ctx.textAlign='left';
+    ctx.fillText(pctLbl, cx+4, cy-R*r+3);
+  });
+
+  // Spokes
+  for(let s=0;s<nSec;s++){
+    const ang=s*secDeg*Math.PI/180-Math.PI/2;
+    ctx.strokeStyle=isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)';
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.cos(ang)*R, cy+Math.sin(ang)*R); ctx.stroke();
+  }
+
+  // Bars (stacked per sector)
+  for(let s=0;s<nSec;s++){
+    const ang=s*secDeg*Math.PI/180-Math.PI/2;
+    const halfW=(secDeg*Math.PI/180)*0.4;
+    let innerR=0;
+    for(let b=0;b<bands.length;b++){
+      const cnt=counts[s][b];
+      if(!cnt) continue;
+      const outerR=innerR+(cnt/total/maxPct)*R;
+      ctx.beginPath();
+      ctx.arc(cx,cy,outerR,ang-halfW,ang+halfW);
+      ctx.arc(cx,cy,innerR,ang+halfW,ang-halfW,true);
+      ctx.closePath();
+      ctx.fillStyle=bands[b].color;
+      ctx.fill();
+      innerR=outerR;
+    }
+  }
+
+  // Compass labels
+  const compass=['N','NO','O','SO','S','SW','W','NW'];
+  ctx.fillStyle=isDark?'#e6e4dc':'#1c1c1a';
+  ctx.font='bold 10px system-ui,sans-serif'; ctx.textAlign='center';
+  compass.forEach((lbl,i)=>{
+    const ang=i*45*Math.PI/180-Math.PI/2;
+    const lr=R+16;
+    ctx.fillText(lbl, cx+Math.cos(ang)*lr, cy+Math.sin(ang)*lr+3);
+  });
+
+  // Legend
+  ctx.font='9px system-ui,sans-serif'; ctx.textAlign='left';
+  const lx=6, ly=H-38;
+  bands.forEach((b,i)=>{
+    ctx.fillStyle=b.color; ctx.fillRect(lx,ly+i*12,10,8);
+    ctx.fillStyle=isDark?'#8a8a82':'#6a6a64';
+    const lbl=i===0?'< 5 kt':i===1?'5–15 kt':'> 15 kt';
+    ctx.fillText(lbl, lx+13, ly+i*12+7);
+  });
+}
+
+function renderWindCombo(){
+  document.getElementById('ph').style.display='none';
+  document.getElementById('std-content').style.display='none';
+  document.getElementById('cc-content').style.display='none';
+  document.getElementById('wc-content').style.display='none';
+  document.getElementById('compare-content').style.display='none';
+  document.getElementById('wind-content').style.display='block';
+
+  // Reset crosshair + analysis panel + compare info
+  _windCrosshairIdx=-1; _heatmapImageData=null; _heatmapMeta=null;
+  document.getElementById('apanel-wind').classList.remove('visible');
+  const _wci=document.getElementById('wind-cmp-info'); if(_wci) _wci.remove();
+  // wind-cmp-row is static HTML, just hide it
+  const _wcr=document.getElementById('wind-cmp-row'); if(_wcr) _wcr.style.display='none';
+  _windPinned=false;
+  const pinBtn=document.getElementById('ap-wind-pin');
+  if(pinBtn){pinBtn.classList.remove('pinned');pinBtn.textContent='📌 Anheften';}
+
+  const {labels:vLabels, members:vM}=viewSlice();
+  const sMs=vM['windspeed_10m'];
+  const dMs=vM['winddirection_10m'];
+
+  if(!sMs?.length){
+    document.getElementById('wind-content').style.display='none';
+    document.getElementById('ph').style.display='flex';
+    document.getElementById('ph').innerHTML='<div style="font-size:32px">⚠️</div><div>Windgeschwindigkeit nicht verfügbar.</div>';
+    return;
+  }
+
+  const thr=S.cfg.wind;
+  const st=stats(sMs);
+  const probs=exceedance(sMs,thr,true);
+  const lbl=chartLabels(vLabels);
+  const tc=DARK()?'#8a8a82':'#6a6a64', gc=DARK()?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)';
+
+  // Store context
+  S_windCtx={sMs,dMs,st,probs,vLabels,thr};
+
+  // Sync slider
+  document.getElementById('wind-thr-slider').value=thr;
+  document.getElementById('wind-thr-disp').textContent=fmtVal(thr,'kt');
+  document.getElementById('ap-wind-plbl').textContent=`P(≥${fmtVal(thr,'kt')})`;
+
+  // Stat cards
+  const validMed=st.median.filter(v=>v!=null&&isFinite(v));
+  const maxMed=validMed.length?Math.max(...validMed):null;
+  const maxP=Math.max(0,...probs.filter(isFinite));
+  const spreadVals=st.p10.map((v,i)=>v!=null&&isFinite(v)&&st.p90[i]!=null&&isFinite(st.p90[i])?st.p90[i]-v:null).filter(v=>v!=null);
+  setCard(1,'Median-Maximum Wind',maxMed!=null?fmtVal(maxMed,'kt'):'n/v','im Vorhersagezeitraum');
+  setCard(2,`P(Wind ≥ ${fmtVal(thr,'kt')})`,`${maxP} %`,'Max. im Vorhersagezeitraum',maxP>=60?'#D85A30':maxP>=30?'#BA7517':'#3B6D11');
+  setCard(3,'Ensemble-Spread (P90–P10)',spreadVals.length?fmtVal(Math.max(...spreadVals),'kt'):'n/v','Max.');
+
+  // Speed plume
+  killChart('wind-speed');
+  S.charts['wind-speed']=new Chart(document.getElementById('c-wind-speed').getContext('2d'),{
+    type:'line',
+    data:{labels:lbl, datasets:plumeDatasets(sMs,st,'#3B8BD4',thr)},
+    options:{...BASE_OPTS, scales:axisOpts('Windgeschw. (kt)'),
+      plugins:{legend:{display:false},tooltip:{filter:i=>i.dataset.label==='Median',callbacks:{label:ctx=>`Median: ${fmtVal(ctx.parsed.y,'kt')}`}}},
+      onHover:(evt,els,chart)=>{
+        if(!els.length||!S_windCtx) return;
+        const idx=els[0].index; chart._lastHoverIdx=idx;
+        showWindPanel();
+        windCrosshairSet(idx);
+      },
+    }
+  });
+  document.getElementById('c-wind-speed').onmouseleave=()=>{
+    hideWindPanel();
+    windCrosshairClear();
+  };
+
+  // P-chart (canvas is in static HTML)
+  killChart('wind-prob');
+  const windProbs=exceedance(sMs,thr,true);
+  const wpTc=DARK()?'#8a8a82':'#6a6a64', wpGc=DARK()?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)';
+  document.getElementById('wind-prob-title').textContent=`P(Wind ≥ ${fmtVal(thr,'kt')})`;
+  S.charts['wind-prob']=new Chart(document.getElementById('c-wind-prob').getContext('2d'),{
+    type:'bar', data:{labels:lbl, datasets:probDatasets(windProbs)},
+    options:{...BASE_OPTS,
+      scales:{
+        x:{ticks:{color:wpTc,maxRotation:45,font:{size:11}},grid:{color:wpGc}},
+        y:{min:0,max:100,ticks:{color:wpTc,font:{size:11}},grid:{color:wpGc},
+           title:{display:true,text:'Wahrscheinlichkeit (%)',color:wpTc,font:{size:11}}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} %`}}},
+      onHover:(evt,els)=>{
+        if(!els.length||!S_windCtx) return;
+        const idx=els[0].index; showWindPanel();
+        updateWindAnalysis(idx,S_windCtx.sMs,S_windCtx.st,S_windCtx.probs,S_windCtx.vLabels,S_windCtx.thr);
+      },
+    }
+  });
+  document.getElementById('c-wind-prob').onmouseleave=()=>hideWindPanel();
+
+  // Wind rose
+  renderWindRose(sMs,dMs);
+
+  // Direction heatmap
+  if(dMs?.length){
+    renderWindDir();
+  } else {
+    const canvas=document.getElementById('c-wind-dir');
+    if(canvas){
+      const ctx2=canvas.getContext('2d');
+      canvas.width=canvas.parentElement.clientWidth||600; canvas.height=200;
+      ctx2.fillStyle=DARK()?'#242422':'#f8f7f4'; ctx2.fillRect(0,0,canvas.width,200);
+      ctx2.fillStyle=DARK()?'#8a8a82':'#6a6a64'; ctx2.textAlign='center'; ctx2.font='12px system-ui';
+      ctx2.fillText('Windrichtung nicht verfügbar in diesem Modell.',canvas.width/2,100);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODELLVERGLEICH
+// ─────────────────────────────────────────────────────────────
+let _cmpHideTimer=null, _cmpPinned=false;
+function showCmpPanel(){ if(_cmpHideTimer){clearTimeout(_cmpHideTimer);_cmpHideTimer=null;} document.getElementById('apanel-cmp').classList.add('visible'); }
+function hideCmpPanel(){ if(_cmpPinned) return; _cmpHideTimer=setTimeout(()=>{document.getElementById('apanel-cmp').classList.remove('visible');_cmpHideTimer=null;},300); }
+function toggleCmpPin(){ _cmpPinned=!_cmpPinned; const btn=document.getElementById('ap-cmp-pin'); btn.classList.toggle('pinned',_cmpPinned); btn.textContent=_cmpPinned?'📌 Angeheftet':'📌 Anheften'; }
+
+// Context for live slider updates in compare mode
+let _cmpCtx=null;
+
+function setCmpDir(dir){
+  if(!_cmpCtx) return;
+  _cmpCtx.effDir=dir;
+  document.getElementById('cmp-dir-below').classList.toggle('on', dir==='below');
+  document.getElementById('cmp-dir-above').classList.toggle('on', dir==='above');
+  // Re-trigger slide with current value to update charts
+  const sl=document.getElementById('cmp-thr-slider');
+  if(sl) onCmpThrSlide(sl.value);
+}
+
+function onCmpThrSlide(v){
+  v=parseFloat(v);
+  if(!_cmpCtx) return;
+  const {ms1,ms2,st1,st2,vLabels,unit,td,tol}=_cmpCtx;
+  const effDir=_cmpCtx.effDir; // read after possible setCmpDir update
+  S.cfg[td.cfgKey]=v;
+  _cmpCtx.thr=v;
+  document.getElementById('cmp-thr-disp').textContent=fmtVal(v,unit);
+
+  const probs1=exceedance(ms1,v,effDir==='above');
+  const probs2=ms2?.length?exceedance(ms2,v,effDir==='above'):[];
+  const dirSym=effDir==='above'?'≥':'≤';
+
+  // Threshold line in plume
+  if(S.charts['cmp-plume']){
+    const ds=S.charts['cmp-plume'].data.datasets;
+    const last=ds[ds.length-1];
+    if(last&&last.label==='Schwelle'){
+      last.data=Array(ms1[0].length).fill(v);
+      S.charts['cmp-plume'].update('none');
+    }
+  }
+  // M1 P-chart
+  if(S.charts['cmp-prob1']){
+    S.charts['cmp-prob1'].data.datasets=probDatasets(probs1);
+    S.charts['cmp-prob1'].update('none');
+  }
+  // M2 P-chart
+  if(S.charts['cmp-prob2']&&probs2.length){
+    const p2c=probs2.map(p=>p===null?'rgba(136,135,128,.4)':
+      p>=60?'rgba(163,45,45,.82)':p>=30?'rgba(83,74,183,.7)':'rgba(83,74,183,.38)');
+    S.charts['cmp-prob2'].data.datasets=[{data:probs2,backgroundColor:p2c,borderRadius:3,borderWidth:0,barPercentage:.85}];
+    S.charts['cmp-prob2'].update('none');
+  }
+  // Panel titles
+  const m1l=modelShortLabel('in-model'), m2l=modelShortLabel('in-model2');
+  const pLblDir=td.pLbl.replace(/[≥≤]/g,dirSym);
+  const el1=document.getElementById('cmp-prob1-title');
+  const el2=document.getElementById('cmp-prob2-title');
+  if(el1) el1.textContent=`${pLblDir} (${fmtVal(v,unit)}) — ${m1l}`;
+  if(el2) el2.textContent=`${pLblDir} (${fmtVal(v,unit)}) — ${m2l}`;
+  // Stat card
+  const maxP1=Math.max(0,...probs1.filter(isFinite));
+  const maxP2=probs2.length?Math.max(0,...probs2.filter(isFinite)):null;
+  setCard(2,`Max. P — ${m1l} / ${m2l}`,
+    `${maxP1} %${maxP2!=null?' / '+maxP2+' %':''}`,
+    'im Vorhersagezeitraum',
+    maxP2!=null&&Math.abs(maxP1-maxP2)>20?'#D85A30':undefined);
+}
+
+function toggleCompare(){
+  S.compare=!S.compare;
+  document.querySelector('.btn-cmp').classList.toggle('on', S.compare);
+  document.querySelector('.hdr').classList.toggle('cmp-active', S.compare);
+  const w2=document.getElementById('in-model2-wrap');
+  w2.classList.toggle('visible', S.compare);
+  if(!S.compare){
+    S.members2={}; S.labels2=[];
+    if(S.labels.length) renderTab(S.activeTab);
+  } else if(S.labels.length){
+    fetchCompare();
+  }
+}
+
+async function fetchCompare(){
+  if(!S.loc||!S.compare) return;
+  const model2=document.getElementById('in-model2').value;
+  S.model2=model2;
+  const selEl=document.getElementById('in-days');
+  const selOpt=selEl.selectedOptions[0];
+  const days=+selOpt.value;
+  const limitHours=selOpt.dataset.hours ? +selOpt.dataset.hours : null;
+
+  setStatus('loading',`Vergleichsmodell wird abgerufen … (${model2})`);
+  try {
+    const key=cacheKey(S.loc.lat,S.loc.lon,model2,days)+'_cmp';
+    let data=cacheGet(key);
+    if(!data){ data=await fetchData(S.loc.lat,S.loc.lon,model2,days); cacheSet(key,data); }
+    const hr=data.hourly;
+    const sliceN=limitHours?Math.min(limitHours,hr.time.length):hr.time.length;
+    S.labels2=hr.time.slice(0,sliceN);
+    S.members2={};
+    ['windspeed_10m','windgusts_10m','winddirection_10m',
+     'temperature_2m','relative_humidity_2m','dew_point_2m',
+     'precipitation','rain','snowfall','snow_depth',
+     'cloud_cover','cloudcover_low','cloudcover_mid','cloudcover_high',
+     'visibility','cape','weather_code'].forEach(v=>{
+       const m=extractMembers(hr,v).map(mem=>mem.slice(0,sliceN));
+       if(m.length) S.members2[v]=m;
+    });
+    const m1lbl=document.getElementById('in-model').selectedOptions[0].text.split(' (')[0];
+    const m2lbl=document.getElementById('in-model2').selectedOptions[0].text.split(' (')[0];
+    setStatus('ok',`${S.loc.name} · ${m1lbl} vs ${m2lbl} · Vergleichsmodus`);
+    renderTab(S.activeTab);
+  } catch(e){
+    setStatus('error',`Vergleichsmodell Fehler: ${e.message}`);
+  }
+}
+
+// Short model labels for badges
+function modelShortLabel(selectId){
+  const txt=document.getElementById(selectId)?.selectedOptions[0]?.text||'M';
+  if(txt.startsWith('ICON-EPS')) return 'ICON';
+  if(txt.startsWith('ICON-EU')) return 'ICON-EU';
+  if(txt.startsWith('ICON-D2')) return 'ICON-D2';
+  if(txt.startsWith('ECMWF')) return 'ECMWF';
+  if(txt.startsWith('GFS')) return 'GFS';
+  if(txt.startsWith('GEPS')) return 'GEPS';
+  return txt.slice(0,6);
+}
+
+// plumeDatasets variant for model2 (dashed, purple tones)
+function plumeDatasets2(members, st){
+  const col='#534AB7';
+  function ra(a){ return `rgba(83,74,183,${a})`; }
+  const ds=[];
+  ds.push({data:st.p90, fill:'+1', backgroundColor:ra(.08), borderColor:'transparent', borderWidth:0, pointRadius:0, tension:.3, label:''});
+  ds.push({data:st.p10, fill:false, borderColor:'transparent', borderWidth:0, pointRadius:0, tension:.3, label:''});
+  ds.push({data:st.p75, fill:'+1', backgroundColor:ra(.18), borderColor:'transparent', borderWidth:0, pointRadius:0, tension:.3, label:''});
+  ds.push({data:st.p25, fill:false, borderColor:'transparent', borderWidth:0, pointRadius:0, tension:.3, label:''});
+  members.forEach(m=>ds.push({data:m, fill:false, borderColor:ra(.1), borderWidth:.75, pointRadius:0, tension:.3, label:''}));
+  ds.push({data:st.median, fill:false, borderColor:col, borderWidth:2.5, borderDash:[7,4], pointRadius:0, tension:.3, label:'M2 Median'});
+  return ds;
+}
+
+function updateCmpAnalysis(tIdx, st1, st2, vLabels, unit, tol){
+  const panel=document.getElementById('apanel-cmp');
+  if(tIdx<0) return;
+  panel.classList.add('visible');
+  const iso=vLabels[tIdx];
+  if(iso){
+    const [d,t]=iso.split('T');
+    const [y,mo,dd]=d.split('-').map(Number);
+    const dt=new Date(y,mo-1,dd);
+    const dn=['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()];
+    document.getElementById('ap-cmp-time').innerHTML=`${dn} ${dd}.${String(mo).padStart(2,'0')}.<br><span style="font-size:14px;color:var(--text);font-weight:700">${t.slice(0,5)} ${S.tz}</span>`;
+  }
+  const fill=(pfx,st)=>{
+    ['p10','p25','med','p75','p90'].forEach(k=>{
+      const val=k==='med'?st.median[tIdx]:st[k][tIdx];
+      document.getElementById(`ap-cmp${pfx}-${k}`).textContent=fmtVal(val,unit);
+    });
+  };
+  if(st1) fill('1',st1);
+  if(st2) fill('2',st2);
+  // Delta
+  if(st1&&st2){
+    const d=st2.median[tIdx]-st1.median[tIdx];
+    const dEl=document.getElementById('ap-cmp-diff');
+    if(dEl){ dEl.textContent=(d>=0?'+':'')+fmtVal(d,unit);
+      dEl.style.color=Math.abs(d)>tol*2?'#D85A30':Math.abs(d)>tol?'#BA7517':'#3B6D11'; }
+  }
+}
+
+function renderTabCompare(tab){
+  // Tabs without per-parameter compare (wc, cloudcover handled separately)
+  if(tab==='wc'){ renderWC(); return; }
+  if(tab==='cloudcover'){ renderCloudcover(); return; }
+  if(tab==='wind'){ renderWindCombo(); return; }
+
+  const td=TABS[tab];
+  if(!td) return;
+
+  // Need both datasets
+  const {labels:vLabels, members:vM}=viewSlice();
+  const ms1=vM[td.apiVar];
+  if(!ms1?.length){ renderTab_single(tab); return; } // fallback to single
+
+  // Slice model2 to same time window
+  const n=vLabels.length;
+  const start=S.view.start, end=S.view.end??S.labels.length;
+  const ms2raw=S.members2[td.apiVar];
+  const ms2=ms2raw?.map(m=>m.slice(start,end??undefined));
+  // m2missing = no array OR all values null
+  const m2missing=!ms2?.length || !ms2.some(m=>m.some(v=>v!==null&&isFinite(v)));
+
+  document.getElementById('ph').style.display='none';
+  document.getElementById('std-content').style.display='none';
+  document.getElementById('cc-content').style.display='none';
+  document.getElementById('wind-content').style.display='none';
+  document.getElementById('wc-content').style.display='none';
+  document.getElementById('compare-content').style.display='block';
+
+  // Reset analysis
+  document.getElementById('apanel-cmp').classList.remove('visible');
+  _cmpPinned=false;
+  const pinBtn=document.getElementById('ap-cmp-pin');
+  if(pinBtn){pinBtn.classList.remove('pinned');pinBtn.textContent='📌 Anheften';}
+
+  const m1lbl=modelShortLabel('in-model');
+  const m2lbl=modelShortLabel('in-model2');
+  const st1=stats(ms1), st2=m2missing?null:(ms2?.length?stats(ms2):null);
+  const thr=S.cfg[td.cfgKey];
+  const effDir=REVERSIBLE_TABS.includes(tab)&&S.tabDir[tab]?S.tabDir[tab]:td.dir;
+  const probs1=exceedance(ms1,thr,effDir==='above');
+  const probs2=m2missing?[]:exceedance(ms2,thr,effDir==='above');
+  const lbl=chartLabels(vLabels);
+  const tc=DARK()?'#8a8a82':'#6a6a64', gc=DARK()?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)';
+  const tol=S.cmpTolerance[tab]??5;
+
+  // Missing-parameter notice
+  const missingEl=document.getElementById('cmp-m2-missing');
+  if(missingEl){
+    missingEl.style.display=m2missing?'block':'none';
+    if(m2missing) document.getElementById('cmp-m2-missing-txt').textContent=
+      `${m2lbl} liefert keine Daten für diesen Parameter — nur ${m1lbl} wird angezeigt.`;
+  }
+
+  // Update labels/badges
+  document.getElementById('cmp-ptitle').textContent=m2missing?`${td.yLbl} — ${m1lbl} (M2 n/v)`:
+    `${td.yLbl} — Modellvergleich`;
+  document.getElementById('cmp-m1-lbl').textContent=m1lbl;
+  document.getElementById('cmp-m2-lbl').textContent=m2lbl;
+  document.getElementById('cmp-leg-m1').style.background=td.color;
+  document.getElementById('cmp-leg-m1-txt').textContent=`${m1lbl} Median`;
+  document.getElementById('cmp-leg-m2').style.borderTopColor='#534AB7';
+  document.getElementById('cmp-leg-m2-txt').textContent=`${m2lbl} Median`;
+  document.getElementById('cmp-prob1-title').textContent=`${td.pLbl} — ${m1lbl}`;
+  document.getElementById('cmp-prob1-badge').textContent=m1lbl;
+  document.getElementById('cmp-prob2-title').textContent=`${td.pLbl} — ${m2lbl}`;
+  document.getElementById('cmp-prob2-badge').textContent=m2lbl;
+  document.getElementById('cmp-diff-title').textContent=`Modellkonsistenz — Δ Median (${m2lbl} − ${m1lbl}) · Toleranz: ${fmtVal(tol,td.unit)}`;
+  document.getElementById('cmp-tol-note').textContent=`Toleranz: ${fmtVal(tol,td.unit)}`;
+  document.getElementById('ap-cmp-m1-lbl').textContent=m1lbl;
+  document.getElementById('ap-cmp-m2-lbl').textContent=m2lbl;
+  document.getElementById('ap-cmp-difflbl').textContent=`Δ Median`;
+
+  // Stat cards
+  // st2 = st2 (already null when m2missing)
+  const vm1=st1.median.filter(v=>v!=null&&isFinite(v));
+  const vm2=st2?st2.median.filter(v=>v!=null&&isFinite(v)):[];
+  const ext1=vm1.length?(effDir==='above'?Math.max(...vm1):Math.min(...vm1)):null;
+  const ext2=vm2.length?(effDir==='above'?Math.max(...vm2):Math.min(...vm2)):null;
+  const maxP1=probs1.filter(p=>p!=null&&isFinite(p)).reduce((a,b)=>Math.max(a,b),0);
+  const maxP2=m2missing?0:probs2.filter(p=>p!=null&&isFinite(p)).reduce((a,b)=>Math.max(a,b),0);
+  const diffs=st2?st1.median.map((v,i)=>v!=null&&st2.median[i]!=null&&isFinite(v)&&isFinite(st2.median[i])?Math.abs(st2.median[i]-v):null).filter(v=>v!=null):[];
+  const maxDiff=diffs.length?Math.max(...diffs):null;
+  setCard(1,`Median-Extrem: ${m1lbl} / ${m2lbl}`,
+    `${ext1!=null?fmtVal(ext1,td.unit):'n/v'} / ${ext2!=null?fmtVal(ext2,td.unit):'n/v'}`,
+    'im Vorhersagezeitraum');
+  setCard(2,`Max. P — ${m1lbl} / ${m2lbl}`,
+    `${maxP1} % / ${maxP2} %`,
+    'im Vorhersagezeitraum',
+    Math.abs(maxP1-maxP2)>20?'#D85A30':Math.abs(maxP1-maxP2)>10?'#BA7517':undefined);
+  setCard(3,'Max. Δ Median',
+    maxDiff!=null?fmtVal(maxDiff,td.unit):'n/v',
+    'im Vorhersagezeitraum',
+    maxDiff!=null?(maxDiff>tol*2?'#D85A30':maxDiff>tol?'#BA7517':'#3B6D11'):undefined);
+
+  // Store context for live slider + sync slider UI
+  _cmpCtx={ms1, ms2:m2missing?null:ms2, st1, st2, vLabels,
+           unit:td.unit, td, effDir, tol, thr};
+  const cmpSl=document.getElementById('cmp-thr-slider');
+  if(cmpSl){
+    cmpSl.min=td.sMin; cmpSl.max=td.sMax; cmpSl.step=td.sStep; cmpSl.value=thr;
+    document.getElementById('cmp-thr-disp').textContent=fmtVal(thr,td.unit);
+  }
+  // Show direction toggle only for reversible tabs
+  const cmpDirToggle=document.getElementById('cmp-dir-toggle');
+  if(cmpDirToggle){
+    cmpDirToggle.classList.toggle('visible', REVERSIBLE_TABS.includes(tab));
+    if(REVERSIBLE_TABS.includes(tab)){
+      document.getElementById('cmp-dir-below').classList.toggle('on', effDir==='below');
+      document.getElementById('cmp-dir-above').classList.toggle('on', effDir==='above');
+    }
+  }
+
+  // ── Overlay plume ──
+  killChart('cmp-plume');
+  const ds1=plumeDatasets(ms1,st1,td.color,thr);
+  const ds2=m2missing?[]:plumeDatasets2(ms2,st2);
+  S.charts['cmp-plume']=new Chart(document.getElementById('c-cmp-plume').getContext('2d'),{
+    type:'line',
+    data:{labels:lbl, datasets:[...ds1,...ds2]},
+    options:{...BASE_OPTS, scales:axisOpts(td.yLbl),
+      plugins:{legend:{display:false},
+        tooltip:{filter:i=>i.dataset.label==='Median'||i.dataset.label==='M2 Median',
+          callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmtVal(ctx.parsed.y,td.unit)}`}}},
+      onHover:(evt,els,chart)=>{
+        if(!els.length) return;
+        const idx=els[0].index;
+        showCmpPanel();
+        updateCmpAnalysis(idx,st1,st2,vLabels,td.unit,tol);
+      },
+    }
+  });
+  document.getElementById('c-cmp-plume').onmouseleave=()=>hideCmpPanel();
+
+  // ── P-charts side by side ──
+  const probAxOpts=(t)=>({...BASE_OPTS, scales:{
+    x:{ticks:{color:tc,maxRotation:45,font:{size:10}},grid:{color:gc}},
+    y:{min:0,max:100,ticks:{color:tc,font:{size:10}},grid:{color:gc},
+       title:{display:true,text:'P [%]',color:tc,font:{size:10}}}},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} %`}}},
+  });
+
+  killChart('cmp-prob1');
+  S.charts['cmp-prob1']=new Chart(document.getElementById('c-cmp-prob1').getContext('2d'),{
+    type:'bar', data:{labels:lbl, datasets:probDatasets(probs1)},
+    options:{...probAxOpts(),
+      onHover:(evt,els)=>{if(!els.length) return; showCmpPanel(); updateCmpAnalysis(els[0].index,st1,st2,vLabels,td.unit,tol);}},
+  });
+  document.getElementById('c-cmp-prob1').onmouseleave=()=>hideCmpPanel();
+
+  killChart('cmp-prob2');
+  if(m2missing){
+    // placeholder
+    const _c2=document.getElementById('c-cmp-prob2'); if(_c2){const _ct=_c2.getContext('2d');_ct.clearRect(0,0,_c2.width,_c2.height);_ct.font='12px system-ui,sans-serif';_ct.textAlign='center';_ct.fillStyle=DARK()?'#8a8a82':'#6a6a64';_ct.fillText(`${m2lbl}: keine Daten`,_c2.clientWidth/2||150,110);}
+  } else {
+  const probs2Colors=probs2.map(p=>p===null?'rgba(136,135,128,.4)':
+    p>=60?'rgba(163,45,45,.82)':p>=30?'rgba(83,74,183,.7)':'rgba(83,74,183,.38)');
+  S.charts['cmp-prob2']=new Chart(document.getElementById('c-cmp-prob2').getContext('2d'),{
+    type:'bar',
+    data:{labels:lbl, datasets:[{data:probs2,backgroundColor:probs2Colors,borderRadius:3,borderWidth:0,barPercentage:.85}]},
+    options:{...probAxOpts(),
+      onHover:(evt,els)=>{if(!els.length) return; showCmpPanel(); updateCmpAnalysis(els[0].index,st1,st2,vLabels,td.unit,tol);}},
+  });
+  document.getElementById('c-cmp-prob2').onmouseleave=()=>hideCmpPanel();
+  }
+
+  // ── Consistency strip ──
+  killChart('cmp-diff');
+  const diffVals=(!m2missing&&st2)?st1.median.map((v,i)=>{
+    const v2=st2.median[i];
+    return (v!=null&&v2!=null&&isFinite(v)&&isFinite(v2))?v2-v:null;
+  }):st1.median.map(()=>null);
+  const diffColors=diffVals.map(d=>d===null?'rgba(136,135,128,.3)':
+    Math.abs(d)>tol*2?'rgba(216,90,48,.82)':Math.abs(d)>tol?'rgba(186,117,23,.82)':'rgba(59,109,17,.82)');
+
+  S.charts['cmp-diff']=new Chart(document.getElementById('c-cmp-diff').getContext('2d'),{
+    type:'bar',
+    data:{labels:lbl, datasets:[{data:diffVals,backgroundColor:diffColors,borderRadius:2,borderWidth:0,barPercentage:.9}]},
+    options:{...BASE_OPTS,
+      scales:{
+        x:{ticks:{color:tc,maxRotation:45,font:{size:9}},grid:{color:gc}},
+        y:{ticks:{color:tc,font:{size:9}},grid:{color:gc},
+           title:{display:true,text:`Δ (${td.unit})`,color:tc,font:{size:9}}},
+      },
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>ctx.parsed.y!=null?(ctx.parsed.y>=0?'+':'')+fmtVal(ctx.parsed.y,td.unit):'n/v'}}},
+    }
+  });
+}
+
+// Fallback to single-model rendering
+function renderTab_single(tab){
+  S.compare=false;
+  document.querySelector('.btn-cmp')?.classList.remove('on');
+  renderTab(tab);
+}
+
+// ─────────────────────────────────────────────────────────────
+// WIND COMPARE
+// ─────────────────────────────────────────────────────────────
+function renderWindCompare(){
+  // Speed: use renderTabCompare with wind tab
+  // Then overlay direction heatmap (M1 only, M2 if available)
+  const tab='wind';
+  const {labels:vLabels, members:vM}=viewSlice();
+  const sMs1=vM['windspeed_10m'];
+  if(!sMs1?.length){ renderWindCombo(); return; }
+
+  const n=vLabels.length;
+  const start=S.view.start, end=S.view.end??S.labels.length;
+  const sMs2raw=S.members2['windspeed_10m'];
+  const sMs2=sMs2raw?.map(m=>m.slice(start,end??undefined));
+  const m2missing=!sMs2?.length || !sMs2.some(m=>m.some(v=>v!==null&&isFinite(v)));
+
+  // Use TABS.wind for styling
+  const td=TABS.wind;
+  const thr=S.cfg.wind;
+  const st1=stats(sMs1);
+  const st2=m2missing?null:stats(sMs2);
+  const probs1=exceedance(sMs1,thr,true);
+  const probs2=m2missing?[]:exceedance(sMs2,thr,true);
+  const lbl=chartLabels(vLabels);
+  const m1lbl=modelShortLabel('in-model');
+  const m2lbl=modelShortLabel('in-model2');
+  const tc=DARK()?'#8a8a82':'#6a6a64', gc=DARK()?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)';
+  const tol=S.cmpTolerance.wind??5;
+
+  document.getElementById('ph').style.display='none';
+  document.getElementById('std-content').style.display='none';
+  document.getElementById('cc-content').style.display='none';
+  document.getElementById('wc-content').style.display='none';
+  document.getElementById('compare-content').style.display='none';
+  document.getElementById('wind-content').style.display='block';
+
+  // Reset
+  document.getElementById('apanel-wind').classList.remove('visible');
+  _windPinned=false;
+  const pinBtn=document.getElementById('ap-wind-pin');
+  if(pinBtn){pinBtn.classList.remove('pinned');pinBtn.textContent='📌 Anheften';}
+  _windCrosshairIdx=-1; _heatmapImageData=null; _heatmapMeta=null;
+
+  // Stat cards
+  const vm1=st1.median.filter(v=>v!=null&&isFinite(v));
+  const vm2=st2?st2.median.filter(v=>v!=null&&isFinite(v)):[];
+  const maxM1=vm1.length?Math.max(...vm1):null;
+  const maxM2=vm2.length?Math.max(...vm2):null;
+  const maxP1=probs1.filter(isFinite).reduce((a,b)=>Math.max(a,b),0);
+  const maxP2=probs2.filter(isFinite).reduce((a,b)=>Math.max(a,b),0);
+  setCard(1,`Max. Median: ${m1lbl} / ${m2lbl}`,
+    `${maxM1!=null?fmtVal(maxM1,'kt'):'n/v'} / ${maxM2!=null?fmtVal(maxM2,'kt'):'n/v'}`,
+    'im Vorhersagezeitraum');
+  setCard(2,`P(≥${fmtVal(thr,'kt')}): ${m1lbl} / ${m2lbl}`,
+    `${maxP1} % / ${m2missing?'n/v':maxP2+' %'}`,
+    'Max. im Vorhersagezeitraum',
+    (!m2missing&&Math.abs(maxP1-maxP2)>20)?'#D85A30':undefined);
+  setCard(3,'Vergleich',m2missing?`${m2lbl}: keine Daten`:`${m1lbl} vs ${m2lbl}`,'Windgeschwindigkeit');
+
+  // Speed plume overlay
+  S_windCtx={sMs:sMs1,dMs:vM['winddirection_10m'],st:st1,probs:probs1,vLabels,thr};
+  const ds1=plumeDatasets(sMs1,st1,'#3B8BD4',thr);
+  const ds2=m2missing?[]:plumeDatasets2(sMs2,st2);
+  killChart('wind-speed');
+  S.charts['wind-speed']=new Chart(document.getElementById('c-wind-speed').getContext('2d'),{
+    type:'line',
+    data:{labels:lbl, datasets:[...ds1,...ds2]},
+    options:{...BASE_OPTS, scales:axisOpts('Windgeschw. (kt)'),
+      plugins:{
+        legend:{display:false},
+        tooltip:{filter:i=>i.dataset.label==='Median'||i.dataset.label==='M2 Median',
+          callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmtVal(ctx.parsed.y,'kt')}`}}
+      },
+      onHover:(evt,els,chart)=>{
+        if(!els.length||!S_windCtx) return;
+        const idx=els[0].index; chart._lastHoverIdx=idx;
+        showWindPanel(); windCrosshairSet(idx);
+      },
+    }
+  });
+  document.getElementById('c-wind-speed').onmouseleave=()=>{hideWindPanel();windCrosshairClear();};
+
+  // Wind rose M1
+  renderWindRose(sMs1,vM['winddirection_10m']);
+
+  // Direction heatmap M1 (M2 direction compare is complex, show M1 with badge)
+  if(vM['winddirection_10m']?.length){
+    renderWindDir();
+  }
+
+  // ── P-charts + consistency strip — use static HTML panels ──
+  const windCmpRow=document.getElementById('wind-cmp-row');
+  if(windCmpRow) windCmpRow.style.display=m2missing?'none':'block';
+
+  // Update static panel titles/badges
+  const wt1=document.getElementById('wind-cmp-prob1-title');
+  const wt2=document.getElementById('wind-cmp-prob2-title');
+  const wb1=document.getElementById('wind-cmp-m1-badge');
+  const wb2=document.getElementById('wind-cmp-m2-badge');
+  if(wt1) wt1.textContent=`P(Wind ≥ ${fmtVal(thr,'kt')}) — ${m1lbl}`;
+  if(wt2) wt2.textContent=`P(Wind ≥ ${fmtVal(thr,'kt')}) — ${m2lbl}`;
+  if(wb1) wb1.textContent=m1lbl;
+  if(wb2) wb2.textContent=m2lbl;
+  const wdt=document.getElementById('wind-cmp-diff-title');
+  if(wdt) wdt.textContent=`Modellkonsistenz — Δ Median (${m2lbl} − ${m1lbl}) · Toleranz: ${fmtVal(S.cmpTolerance.wind??5,'kt')}`;
+
+  if(!m2missing){
+    const tc2=DARK()?'#8a8a82':'#6a6a64', gc2=DARK()?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)';
+    const probOpts2=()=>({...BASE_OPTS, scales:{
+      x:{ticks:{color:tc2,maxRotation:45,font:{size:10}},grid:{color:gc2}},
+      y:{min:0,max:100,ticks:{color:tc2,font:{size:10}},grid:{color:gc2},
+         title:{display:true,text:'P [%]',color:tc2,font:{size:10}}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} %`}}},
+    });
+
+    killChart('wind-cmp-prob1');
+    S.charts['wind-cmp-prob1']=new Chart(
+      document.getElementById('c-wind-cmp-prob1').getContext('2d'),{
+      type:'bar', data:{labels:lbl, datasets:probDatasets(probs1)},
+      options:probOpts2(),
+    });
+
+    killChart('wind-cmp-prob2');
+    const p2c=probs2.map(p=>p===null?'rgba(136,135,128,.4)':
+      p>=60?'rgba(163,45,45,.82)':p>=30?'rgba(83,74,183,.7)':'rgba(83,74,183,.38)');
+    S.charts['wind-cmp-prob2']=new Chart(
+      document.getElementById('c-wind-cmp-prob2').getContext('2d'),{
+      type:'bar', data:{labels:lbl, datasets:[{data:probs2,backgroundColor:p2c,borderRadius:3,borderWidth:0,barPercentage:.85}]},
+      options:probOpts2(),
+    });
+
+    killChart('wind-cmp-diff');
+    const tol2=S.cmpTolerance.wind??5;
+    const dv2=st2?st1.median.map((v,i)=>{const v2=st2.median[i];return(v!=null&&v2!=null&&isFinite(v)&&isFinite(v2))?v2-v:null;}):st1.median.map(()=>null);
+    const dc2=dv2.map(d=>d===null?'rgba(136,135,128,.3)':Math.abs(d)>tol2*2?'rgba(216,90,48,.82)':Math.abs(d)>tol2?'rgba(186,117,23,.82)':'rgba(59,109,17,.82)');
+    S.charts['wind-cmp-diff']=new Chart(
+      document.getElementById('c-wind-cmp-diff').getContext('2d'),{
+      type:'bar', data:{labels:lbl, datasets:[{data:dv2,backgroundColor:dc2,borderRadius:2,borderWidth:0,barPercentage:.9}]},
+      options:{...BASE_OPTS, scales:{
+        x:{ticks:{color:tc2,maxRotation:45,font:{size:9}},grid:{color:gc2}},
+        y:{ticks:{color:tc2,font:{size:9}},grid:{color:gc2},
+           title:{display:true,text:'Δ kt',color:tc2,font:{size:9}}}},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y!=null?(ctx.parsed.y>=0?'+':'')+fmtVal(ctx.parsed.y,'kt'):'n/v'}}},
+      }
+    });
+  }
+
+  // Update compare info line (use fixed element, no duplicate insertion)
+  let wCmpInfo=document.getElementById('wind-cmp-info');
+  if(!wCmpInfo){
+    wCmpInfo=document.createElement('div');
+    wCmpInfo.id='wind-cmp-info';
+    wCmpInfo.style.cssText='font-size:11px;color:var(--muted);margin-bottom:8px';
+    const pTitle=document.querySelector('#wind-content .ptitle');
+    if(pTitle) pTitle.insertAdjacentElement('afterend',wCmpInfo);
+  }
+  wCmpInfo.innerHTML=`<span class="cmp-badge cmp-m1">${m1lbl}</span> Volllinie ·
+    <span class="cmp-badge cmp-m2">${m2lbl}</span> ${m2missing?'keine Daten':'gestrichelt'}
+    ${m2missing?'':`· Richtungsheatmap: nur ${m1lbl}`}`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// CLOUD COVER COMPARE
+// ─────────────────────────────────────────────────────────────
+function renderCloudcoverCompare(){
+  // For cloudcover, use renderTabCompare-style with cloud_cover variable
+  const tab='cloudcover';
+  const {labels:vLabels, members:vM}=viewSlice();
+  const ms1=vM['cloud_cover'];
+  if(!ms1?.length){ renderCloudcover(); return; }
+  const start=S.view.start, end=S.view.end??S.labels.length;
+  const ms2raw=S.members2['cloud_cover'];
+  const ms2=ms2raw?.map(m=>m.slice(start,end??undefined));
+  const m2missing=!ms2?.length || !ms2.some(m=>m.some(v=>v!==null&&isFinite(v)));
+
+  const thr=S.cfg.cloudcover;
+  const st1=stats(ms1), st2=m2missing?null:stats(ms2);
+  const probs1=exceedance(ms1,thr,true);
+  const probs2=m2missing?[]:exceedance(ms2,thr,true);
+  const lbl=chartLabels(vLabels);
+  const m1lbl=modelShortLabel('in-model');
+  const m2lbl=modelShortLabel('in-model2');
+  const tc=DARK()?'#8a8a82':'#6a6a64', gc=DARK()?'rgba(255,255,255,.05)':'rgba(0,0,0,.05)';
+  const tol=S.cmpTolerance.cloudcover??10;
+
+  document.getElementById('ph').style.display='none';
+  document.getElementById('std-content').style.display='none';
+  document.getElementById('wc-content').style.display='none';
+  document.getElementById('wind-content').style.display='none';
+  document.getElementById('compare-content').style.display='block';
+  document.getElementById('cc-content').style.display='none';
+
+  document.getElementById('apanel-cmp').classList.remove('visible');
+  _cmpPinned=false;
+  const pinBtn=document.getElementById('ap-cmp-pin');
+  if(pinBtn){pinBtn.classList.remove('pinned');pinBtn.textContent='📌 Anheften';}
+
+  // Reuse all compare-content panel elements
+  const missingEl=document.getElementById('cmp-m2-missing');
+  if(missingEl){ missingEl.style.display=m2missing?'block':'none';
+    if(m2missing) document.getElementById('cmp-m2-missing-txt').textContent=
+      `${m2lbl} liefert keine Daten für Gesamtbedeckung — nur ${m1lbl} wird angezeigt.`;
+  }
+  document.getElementById('cmp-ptitle').textContent=`Gesamtbedeckung — ${m2missing?m1lbl:'Modellvergleich'}`;
+  document.getElementById('cmp-m1-lbl').textContent=m1lbl; document.getElementById('cmp-m1-lbl').style.cssText='background:rgba(136,135,128,.15);color:#5F5E5A';
+  document.getElementById('cmp-m2-lbl').textContent=m2lbl; document.getElementById('cmp-m2-lbl').style.display=m2missing?'none':'';
+  document.getElementById('cmp-leg-m1').style.background='#888780';
+  document.getElementById('cmp-leg-m1-txt').textContent=`${m1lbl} Median`;
+  document.getElementById('cmp-leg-m2').style.borderTopColor='#534AB7';
+  document.getElementById('cmp-leg-m2-txt').textContent=`${m2lbl} Median`;
+  ['cmp-leg-m2','cmp-leg-m2-txt'].forEach(id=>{const el=document.getElementById(id);if(el){const li=el.closest('.li');if(li)li.style.display=m2missing?'none':'flex';}});
+  document.getElementById('cmp-prob1-title').textContent=`P(Bedeckung ≥ ${fmtVal(thr,'%')}) — ${m1lbl}`;
+  document.getElementById('cmp-prob1-badge').textContent=m1lbl; document.getElementById('cmp-prob1-badge').style.cssText='background:rgba(136,135,128,.15);color:#5F5E5A';
+  document.getElementById('cmp-prob2-title').textContent=m2missing?`${m2lbl}: keine Daten`:`P(Bedeckung ≥ ${fmtVal(thr,'%')}) — ${m2lbl}`;
+  document.getElementById('cmp-prob2-badge').textContent=m2lbl;
+  document.getElementById('cmp-diff-title').textContent=m2missing?'Konsistenz: n/v':`Modellkonsistenz — Δ Median (${m2lbl} − ${m1lbl}) · Toleranz: ${fmtVal(tol,'%')}`;
+  document.getElementById('ap-cmp-m1-lbl').textContent=m1lbl;
+  document.getElementById('ap-cmp-m2-lbl').textContent=m2lbl;
+  document.getElementById('ap-cmp-difflbl').textContent='Δ Median';
+
+  // Stat cards
+  const vm1=st1.median.filter(v=>v!=null&&isFinite(v));
+  const maxM1=vm1.length?Math.max(...vm1):null;
+  const maxP1=probs1.filter(isFinite).reduce((a,b)=>Math.max(a,b),0);
+  const maxP2=m2missing?0:probs2.filter(isFinite).reduce((a,b)=>Math.max(a,b),0);
+  setCard(1,'Median-Maximum',maxM1!=null?fmtVal(maxM1,'%'):'n/v','im Vorhersagezeitraum');
+  setCard(2,`P(Bedeckung ≥ ${fmtVal(thr,'%')})`,`${maxP1} %${m2missing?'':' / '+maxP2+' %'}`,'Max. im Vorhersagezeitraum');
+  setCard(3,'Vergleich',m2missing?`${m2lbl}: keine Daten`:`${m1lbl} vs ${m2lbl}`,'Gesamtbedeckung');
+
+  // Charts
+  killChart('cmp-plume');
+  const ds1=plumeDatasets(ms1,st1,'#888780',thr);
+  const ds2=m2missing?[]:plumeDatasets2(ms2,st2);
+  S.charts['cmp-plume']=new Chart(document.getElementById('c-cmp-plume').getContext('2d'),{
+    type:'line', data:{labels:lbl, datasets:[...ds1,...ds2]},
+    options:{...BASE_OPTS, scales:axisOpts('Bedeckung (%)'),
+      plugins:{legend:{display:false},tooltip:{filter:i=>i.dataset.label==='Median'||i.dataset.label==='M2 Median',
+        callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmtVal(ctx.parsed.y,'%')}`}}},
+      onHover:(evt,els)=>{if(!els.length) return; const idx=els[0].index; showCmpPanel();
+        updateCmpAnalysis(idx,st1,st2,vLabels,'%',tol);},
+    }
+  });
+  document.getElementById('c-cmp-plume').onmouseleave=()=>hideCmpPanel();
+
+  killChart('cmp-prob1');
+  S.charts['cmp-prob1']=new Chart(document.getElementById('c-cmp-prob1').getContext('2d'),{
+    type:'bar', data:{labels:lbl, datasets:probDatasets(probs1)},
+    options:{...BASE_OPTS, scales:{x:{ticks:{color:tc,maxRotation:45,font:{size:10}},grid:{color:gc}},y:{min:0,max:100,ticks:{color:tc,font:{size:10}},grid:{color:gc},title:{display:true,text:'P [%]',color:tc,font:{size:10}}}},
+      plugins:{legend:{display:false}},
+      onHover:(evt,els)=>{if(!els.length) return; showCmpPanel(); updateCmpAnalysis(els[0].index,st1,st2,vLabels,'%',tol);},
+    }
+  });
+  document.getElementById('c-cmp-prob1').onmouseleave=()=>hideCmpPanel();
+
+  killChart('cmp-prob2');
+  if(m2missing){
+    const ct=document.getElementById('c-cmp-prob2').getContext('2d');
+    ct.clearRect(0,0,ct.canvas.width,ct.canvas.height);
+    ct.font='12px system-ui,sans-serif'; ct.textAlign='center';
+    ct.fillStyle=DARK()?'#8a8a82':'#6a6a64';
+    ct.fillText(`${m2lbl}: keine Daten`,ct.canvas.clientWidth/2||150,110);
+  } else {
+    const p2c=probs2.map(p=>p===null?'rgba(136,135,128,.4)':p>=60?'rgba(163,45,45,.82)':p>=30?'rgba(83,74,183,.7)':'rgba(83,74,183,.38)');
+    S.charts['cmp-prob2']=new Chart(document.getElementById('c-cmp-prob2').getContext('2d'),{
+      type:'bar', data:{labels:lbl, datasets:[{data:probs2,backgroundColor:p2c,borderRadius:3,borderWidth:0,barPercentage:.85}]},
+      options:{...BASE_OPTS, scales:{x:{ticks:{color:tc,maxRotation:45,font:{size:10}},grid:{color:gc}},y:{min:0,max:100,ticks:{color:tc,font:{size:10}},grid:{color:gc}}},
+        plugins:{legend:{display:false}},
+        onHover:(evt,els)=>{if(!els.length) return; showCmpPanel(); updateCmpAnalysis(els[0].index,st1,st2,vLabels,'%',tol);},
+      }
+    });
+    document.getElementById('c-cmp-prob2').onmouseleave=()=>hideCmpPanel();
+  }
+
+  killChart('cmp-diff');
+  const dv=(!m2missing&&st2)?st1.median.map((v,i)=>{const v2=st2.median[i];return (v!=null&&v2!=null&&isFinite(v)&&isFinite(v2))?v2-v:null;}):st1.median.map(()=>null);
+  const dc=dv.map(d=>d===null?'rgba(136,135,128,.3)':Math.abs(d)>tol*2?'rgba(216,90,48,.82)':Math.abs(d)>tol?'rgba(186,117,23,.82)':'rgba(59,109,17,.82)');
+  S.charts['cmp-diff']=new Chart(document.getElementById('c-cmp-diff').getContext('2d'),{
+    type:'bar', data:{labels:lbl, datasets:[{data:dv,backgroundColor:dc,borderRadius:2,borderWidth:0,barPercentage:.9}]},
+    options:{...BASE_OPTS,
+      scales:{x:{ticks:{color:tc,maxRotation:45,font:{size:9}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:9}},grid:{color:gc},title:{display:true,text:'Δ (%)',color:tc,font:{size:9}}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y!=null?(ctx.parsed.y>=0?'+':'')+fmtVal(ctx.parsed.y,'%'):'n/v'}}},
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// TAB AVAILABILITY
+// ─────────────────────────────────────────────────────────────
+// Map tab id → required S.members key (null = always available)
+const TAB_REQUIRES = {
+  wind:'windspeed_10m',  // combo tab: also uses winddirection_10m
+  gusts:'windgusts_10m',
+  temp:'temperature_2m', dewpoint:'dew_point_2m', humidity:'relative_humidity_2m',
+  cloudcover:'cloud_cover',
+  visibility:'visibility',
+  precip:'precipitation', rain:'rain', snow:'snowfall', snowdepth:'snow_depth',
+  cape:'cape', wc:'weather_code',
+};
+
+function hasData(varName){
+  // True only if the variable exists AND has at least one non-null finite value
+  const ms=S.members[varName];
+  if(!ms?.length) return false;
+  return ms.some(m=>m.some(v=>v!==null&&isFinite(v)));
+}
+
+function isTabAvail(t){
+  if(t==='vfr') return hasData('visibility')||hasData('cloudcover_low');
+  const req=TAB_REQUIRES[t];
+  return req===null || hasData(req);
+}
+
+function updateTabAvailability(){
+  let firstAvail=null;
+  document.querySelectorAll('.tab[data-t]').forEach(btn=>{
+    const t=btn.dataset.t;
+    const avail=isTabAvail(t);
+    btn.classList.toggle('disabled', !avail);
+    btn.title=avail ? '' : 'Nicht verfügbar in diesem Modell';
+    if(avail && !firstAvail) firstAvail=t;
+  });
+  // If current active tab is unavailable, visually switch to first available
+  if(!isTabAvail(S.activeTab) && firstAvail){
+    switchTab(firstAvail);
+  }
+}
+
+function switchTab(tab){
+  S.activeTab=tab;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+  if(S.labels.length) renderTab(tab);
+}
+
+// Tabs where the user can flip the exceedance direction
+const REVERSIBLE_TABS = ['temp','dewpoint','humidity'];
+
+function setThrDir(dir){
+  S.tabDir[S.activeTab]=dir;
+  document.getElementById('dir-btn-below').classList.toggle('on', dir==='below');
+  document.getElementById('dir-btn-above').classList.toggle('on', dir==='above');
+  // Update ptitle
+  const td=TABS[S.activeTab];
+  if(td) document.getElementById('ptitle-prob').textContent=
+    dir==='below' ? td.pLbl.replace('≥','≤') : td.pLbl.replace('≤','≥');
+  // Re-render with new direction
+  if(S.labels.length) renderTab(S.activeTab);
+}
+
+// ─────────────────────────────────────────────────────────────
+// ZEITFENSTER
+// ─────────────────────────────────────────────────────────────
+function buildZeitfenster(){
+  const strip=document.getElementById('zf-strip');
+  const daysEl=document.getElementById('zf-days');
+  daysEl.innerHTML='';
+  strip.style.display='';      // clear inline style set by clearDisplay()
+  strip.classList.add('visible');
+
+  // Group labels by calendar date
+  const groups={};
+  S.labels.forEach((iso,i)=>{
+    const date=iso.split('T')[0];
+    if(!groups[date]) groups[date]=[];
+    groups[date].push(i);
+  });
+
+  Object.entries(groups).forEach(([date,idxs],gi)=>{
+    const d=new Date(date+'T00:00:00');
+    const dd=d.getDate().toString().padStart(2,'0');
+    const mo=(d.getMonth()+1).toString().padStart(2,'0');
+    const dnames=['So','Mo','Di','Mi','Do','Fr','Sa'];
+    const btn=document.createElement('button');
+    btn.className='day-btn';
+    btn.dataset.date=date;
+    btn.innerHTML=`<span style="font-size:10px;display:block;color:inherit;opacity:.75">${dnames[d.getDay()]}</span>${dd}.${mo}.`;
+    btn.onclick=()=>setView(idxs[0], idxs[idxs.length-1]+1);
+    daysEl.appendChild(btn);
+  });
+
+  // Init range slider
+  const n=S.labels.length;
+  const lo=document.getElementById('range-lo');
+  const hi=document.getElementById('range-hi');
+  lo.max=n-1; hi.max=n-1;
+  lo.value=0; hi.value=n-1;
+  updateRangeFill(0,n-1,n-1);
+  updateRangeLabels(0,n-1);
+}
+
+function setView(start, end){
+  S.view.start=start;
+  S.view.end=end;
+  // Sync day buttons
+  const s=start, e=end??S.labels.length;
+  document.querySelectorAll('.day-btn').forEach(b=>{
+    if(b.id==='zf-all'){
+      b.classList.toggle('on', s===0 && (end===null||e===S.labels.length));
+      return;
+    }
+    const date=b.dataset.date;
+    if(!date) return;
+    // Is this day fully within the view?
+    const firstIdx=S.labels.findIndex(l=>l.startsWith(date));
+    b.classList.toggle('on', firstIdx>=s && firstIdx<e);
+  });
+  // Sync range slider
+  const n=S.labels.length;
+  const lo=document.getElementById('range-lo');
+  const hi=document.getElementById('range-hi');
+  lo.value=s; hi.value=(e??n)-1;
+  updateRangeFill(s,(e??n)-1,n-1);
+  updateRangeLabels(s,(e??n)-1);
+  renderTab(S.activeTab);
+}
+
+function onRangeLo(v){
+  v=+v;
+  const hi=+document.getElementById('range-hi').value;
+  if(v>hi){ document.getElementById('range-lo').value=hi; v=hi; }
+  S.view.start=v;
+  S.view.end=hi+1;
+  updateRangeFill(v,hi,+document.getElementById('range-lo').max);
+  updateRangeLabels(v,hi);
+  syncDayBtnsFromRange(v,hi+1);
+  renderTab(S.activeTab);
+}
+
+function onRangeHi(v){
+  v=+v;
+  const lo=+document.getElementById('range-lo').value;
+  if(v<lo){ document.getElementById('range-hi').value=lo; v=lo; }
+  S.view.start=lo;
+  S.view.end=v+1;
+  updateRangeFill(lo,v,+document.getElementById('range-hi').max);
+  updateRangeLabels(lo,v);
+  syncDayBtnsFromRange(lo,v+1);
+  renderTab(S.activeTab);
+}
+
+function updateRangeFill(lo,hi,max){
+  const fill=document.getElementById('range-fill');
+  const l=max>0?lo/max*100:0;
+  const r=max>0?hi/max*100:100;
+  fill.style.left=l+'%';
+  fill.style.width=(r-l)+'%';
+}
+
+function updateRangeLabels(lo,hi){
+  const fl=S.labels[lo]; const fh=S.labels[Math.min(hi,S.labels.length-1)];
+  const fmt=iso=>{
+    const [d,t]=iso.split('T');
+    const [,mo,dd]=d.split('-');
+    return `${dd}.${mo}. ${t.slice(0,5)}`;
+  };
+  document.getElementById('zf-from').textContent=fl?fmt(fl):'—';
+  document.getElementById('zf-to').textContent=fh?fmt(fh):'—';
+}
+
+function syncDayBtnsFromRange(start,end){
+  const allFull=(start===0&&end>=S.labels.length);
+  document.getElementById('zf-all').classList.toggle('on',allFull);
+  document.querySelectorAll('.day-btn[data-date]').forEach(b=>{
+    const date=b.dataset.date;
+    const firstIdx=S.labels.findIndex(l=>l.startsWith(date));
+    b.classList.toggle('on', firstIdx>=start && firstIdx<end);
+  });
+}
+
+function onThrSlide(v){
+  const td=TABS[S.activeTab];
+  if(!td) return;
+  const thr=parseFloat(v);
+  S.cfg[td.cfgKey]=thr;
+  document.getElementById('thr-disp').textContent=fmtVal(thr,td.unit);
+
+  const {members:vMembers}=viewSlice();
+  const ms=vMembers[td.apiVar];
+  if(!ms) return;
+  const probs=exceedance(ms,thr,td.dir==='above');
+
+  // Update prob chart
+  if(S.charts.prob){
+    S.charts.prob.data.datasets=probDatasets(probs);
+    S.charts.prob.update('none');
+  }
+  // Update threshold line in plume
+  if(S.charts.plume){
+    const ds=S.charts.plume.data.datasets;
+    const last=ds[ds.length-1];
+    if(last&&last.label==='Schwelle'){ last.data=Array(ms[0].length).fill(thr); S.charts.plume.update('none'); }
+  }
+  // Update stat card
+  const maxP=Math.max(...probs.filter(p=>p!==null));
+  const c2=maxP>=60?'#D85A30':maxP>=30?'#BA7517':'#3B6D11';
+  setCard(2,`${td.pLbl} (${fmtVal(thr,td.unit)})`,`${maxP} %`,'Max. im Vorhersagezeitraum',c2);
+
+  // Refresh analysis panel with updated prob + threshold
+  if(S.hoverCtx){
+    S.hoverCtx.thr=thr;
+    S.hoverCtx.probs=probs;
+    const panel=document.getElementById('apanel');
+    if(panel.classList.contains('visible')&&S.charts.plume){
+      // re-use last hovered index stored on chart
+      const lastIdx=S.charts.plume._lastHoverIdx??-1;
+      if(lastIdx>=0) updateAnalysisPanel(lastIdx,S.hoverCtx.st,probs,S.hoverCtx.vLabels,S.hoverCtx.unit,thr,S.hoverCtx.color);
+    }
+  }
+  // Sync config input
+  const id=`c-${S.activeTab==='icing'?'icing-fl':S.activeTab}`;
+  const inp=document.getElementById(id);
+  if(inp) inp.value=v;
+}
+
+function setStatus(type,msg){
+  const d=document.getElementById('sdot');
+  d.className='dot'+(type&&type!=='idle'?' '+type:'');
+  document.getElementById('stxt').textContent=msg;
+}
+
+// ─────────────────────────────────────────────────────────────
+// CONFIG PANEL
+// ─────────────────────────────────────────────────────────────
+function openCfg(){
+  syncCfgInputs();
+  document.getElementById('overlay').classList.add('open');
+}
+function closeCfg(){ document.getElementById('overlay').classList.remove('open'); }
+
+const CFG_MAP=[
+  ['c-wind','wind'],['c-gusts','gusts'],
+  ['c-temp','temp'],['c-dewpoint','dewpoint'],['c-humidity','humidity'],
+  ['c-cloudcover','cloudcover'],['c-visibility','visibility'],
+  ['c-precip','precip'],['c-rain','rain'],['c-snow','snow'],['c-snowdepth','snowdepth'],
+  ['c-cape','cape'],
+];
+
+function syncCfgInputs(){
+  CFG_MAP.forEach(([id,key])=>{ const el=document.getElementById(id); if(el) el.value=S.cfg[key]; });
+  [['c-tol-wind','wind'],['c-tol-temp','temp'],['c-tol-precip','precip'],['c-tol-cape','cape']]
+    .forEach(([id,k])=>{ const el=document.getElementById(id); if(el) el.value=S.cmpTolerance[k]??''; });
+}
+
+function applyCfg(){
+  CFG_MAP.forEach(([id,key])=>{
+    const el=document.getElementById(id);
+    if(el) S.cfg[key]=parseFloat(el.value)||DEFAULT_CFG[key];
+  });
+  [['c-tol-wind','wind'],['c-tol-temp','temp'],['c-tol-precip','precip'],['c-tol-cape','cape']]
+    .forEach(([id,k])=>{ const el=document.getElementById(id); if(el&&el.value) S.cmpTolerance[k]=parseFloat(el.value); });
+  if(S.labels.length) renderTab(S.activeTab);
+}
+
+function toggleTheme(){
+  const root=document.documentElement;
+  const current=root.getAttribute('data-theme');
+  const sysDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  // Cycle: auto → forced opposite → auto
+  if(!current){
+    root.setAttribute('data-theme', sysDark ? 'light' : 'dark');
+  } else if(current==='light'){
+    root.setAttribute('data-theme', 'dark');
+  } else {
+    root.removeAttribute('data-theme'); // back to system
+  }
+  updateThemeBtn();
+  // Re-render current charts (colors depend on DARK())
+  if(S.labels.length) renderTab(S.activeTab);
+}
+
+function updateThemeBtn(){
+  const btn=document.getElementById('btn-theme');
+  if(!btn) return;
+  const theme=document.documentElement.getAttribute('data-theme');
+  const sysDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  const isDark=theme==='dark'||(theme!=='light'&&sysDark);
+  btn.textContent=isDark ? '☀' : '🌙';
+  btn.title=theme ? `Modus: ${isDark?'Dunkel':'Hell'} (klicken zum ${isDark?'Aufhellen':'Abdunkeln'})` : 'System-Modus aktiv';
+}
+
+function setTimezone(tz){
+  if(S.tz===tz) return;
+  S.tz=tz;
+  localStorage.setItem('eps_wx_tz', tz);
+  document.getElementById('tz-utc').classList.toggle('on', tz==='UTC');
+  document.getElementById('tz-loc').classList.toggle('on', tz==='LOC');
+  // Clear data and re-fetch so API returns correct timestamps
+  if(S.labels.length){
+    clearDisplay('Zeitzone geändert — Daten werden neu abgerufen …');
+    onFetch();
+  }
+}
+
+function initTimezone(){
+  const saved=localStorage.getItem('eps_wx_tz');
+  // UTC is always default, ignore saved LOC preference on startup
+  // (safety: stale LOC data should not persist as default)
+  const tz=saved||'UTC';
+  S.tz=tz;
+  document.getElementById('tz-utc').classList.toggle('on', tz==='UTC');
+  document.getElementById('tz-loc').classList.toggle('on', tz==='LOC');
+}
+
+function clearCache(){
+  let n=0;
+  Object.keys(localStorage).filter(k=>k.startsWith('eps_wx|')).forEach(k=>{localStorage.removeItem(k);n++;});
+  setStatus('ok',`Cache geleert — ${n} Einträge gelöscht.`);
+}
+
+function resetCfg(){
+  S.cfg={...DEFAULT_CFG};
+  syncCfgInputs();
+  if(S.labels.length) renderTab(S.activeTab);
+}
+
+// Attach oninput to all config inputs
+document.querySelectorAll('.cpanel input').forEach(el=>el.addEventListener('input',applyCfg));
+
+// ─────────────────────────────────────────────────────────────
+// INIT — populate datalist
+// ─────────────────────────────────────────────────────────────
+(function init(){
+  const input=document.getElementById('in-icao');
+
+  // Live ICAO suggestions from local table
+  input.addEventListener('input',()=>{
+    if(S.labels.length) clearDisplay('Neue Station eingegeben — bitte Daten abrufen.');
+    const q=input.value.trim().toUpperCase();
+    if(q.length<2){ hidePicker(); return; }
+    // Show matching local airports as quick suggestions
+    const matches=Object.entries(AP)
+      .filter(([icao,{name}])=>icao.startsWith(q)||name.toUpperCase().includes(q))
+      .slice(0,6);
+    if(!matches.length){ hidePicker(); return; }
+    const picker=document.getElementById('loc-picker');
+    picker.innerHTML='<div class="loc-header">Bekannte Flugplätze</div>'
+      +matches.map(([icao,{name,lat,lon}])=>
+        `<div class="loc-option" data-icao="${icao}">
+          <span class="lo-name">${icao} — ${name}</span>
+          <span class="lo-detail">${lat.toFixed(3)}°N ${lon.toFixed(3)}°E</span>
+        </div>`).join('');
+    picker.querySelectorAll('.loc-option').forEach(el=>{
+      el.addEventListener('click',()=>{
+        const icao=el.dataset.icao;
+        input.value=icao;
+        hidePicker();
+        onFetch();
+      });
+    });
+    picker.style.display='block';
+  });
+
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){ hidePicker(); onFetch(); }
+    if(e.key==='Escape') hidePicker();
+  });
+
+  document.addEventListener('click',e=>{
+    const picker=document.getElementById('loc-picker');
+    if(!picker.contains(e.target)&&e.target!==input) hidePicker();
+  });
+
+  // Init theme button icon
+  updateThemeBtn();
+  window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', updateThemeBtn);
+  initTimezone();
+
+  // Model or horizon change → clear immediately + auto-fetch if data was loaded
+  function onSelectChange(){
+    if(S.labels.length){
+      clearDisplay('Modell/Horizont geändert — Daten werden neu abgerufen …');
+      onFetch();
+    }
+  }
+  document.getElementById('in-model').addEventListener('change', onSelectChange);
+  document.getElementById('in-days').addEventListener('change', onSelectChange);
+  document.getElementById('in-model2').addEventListener('change', ()=>{
+    if(S.compare && S.labels.length) fetchCompare();
+  });
+})();
+</script>
+</body>
+</html>
