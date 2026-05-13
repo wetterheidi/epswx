@@ -985,7 +985,7 @@ const AP = {
 // ─────────────────────────────────────────────────────────────
 const TABS = {
   wind:      { apiVar:'windspeed_10m',       unit:'kt',  color:'#3B8BD4', cfgKey:'wind',      dir:'above', yLbl:'Windgeschw. (kt)',     pLbl:'P(Wind ≥ Schwelle)',         sMin:0,   sMax:80,    sStep:1   },
-  gusts:     { apiVar:'windgusts_10m',       unit:'kt',  color:'#D85A30', cfgKey:'gusts',     dir:'above', yLbl:'Böen (kt)',             pLbl:'P(Böen ≥ Schwelle)',         sMin:0,   sMax:120,   sStep:1   },
+  gusts:     { apiVar:'wind_gusts_10m',       unit:'kt',  color:'#D85A30', cfgKey:'gusts',     dir:'above', yLbl:'Böen (kt)',             pLbl:'P(Böen ≥ Schwelle)',         sMin:0,   sMax:120,   sStep:1   },
   temp:      { apiVar:'temperature_2m',      unit:'°C',  color:'#D85A30', cfgKey:'temp',      dir:'below', yLbl:'Temperatur (°C)',       pLbl:'P(T ≤ Schwelle)',            sMin:-40, sMax:50,    sStep:1   },
   dewpoint:  { apiVar:'dew_point_2m',        unit:'°C',  color:'#1D9E75', cfgKey:'dewpoint',  dir:'below', yLbl:'Taupunkt (°C)',         pLbl:'P(Td ≤ Schwelle)',           sMin:-40, sMax:30,    sStep:1   },
   humidity:  { apiVar:'relative_humidity_2m',unit:'%',   color:'#185FA5', cfgKey:'humidity',  dir:'above', yLbl:'Rel. Feuchte (%)',      pLbl:'P(rF ≥ Schwelle)',           sMin:0,   sMax:100,   sStep:5   },
@@ -1183,7 +1183,7 @@ async function resolveLocation(q, silent=false){
 
 async function fetchData(lat,lon,model,days){
   const vars=[
-    'windspeed_10m','windgusts_10m','winddirection_10m',
+    'windspeed_10m','wind_gusts_10m','winddirection_10m',
     'temperature_2m','relative_humidity_2m','dew_point_2m',
     'precipitation','rain','snowfall','snow_depth',
     'cloud_cover','cloudcover_low','cloudcover_mid','cloudcover_high',
@@ -1284,7 +1284,7 @@ async function onFetch(){
     S.members={};
     S.view={start:0,end:null};
 
-    ['windspeed_10m','windgusts_10m','winddirection_10m',
+    ['windspeed_10m','wind_gusts_10m','winddirection_10m',
      'temperature_2m','relative_humidity_2m','dew_point_2m',
      'precipitation','rain','snowfall','snow_depth',
      'cloud_cover','cloudcover_low','cloudcover_mid','cloudcover_high',
@@ -2663,7 +2663,7 @@ async function fetchCompare(){
     const sliceN=limitHours?Math.min(limitHours,hr.time.length):hr.time.length;
     S.labels2=hr.time.slice(0,sliceN);
     S.members2={};
-    ['windspeed_10m','windgusts_10m','winddirection_10m',
+    ['windspeed_10m','wind_gusts_10m','winddirection_10m',
      'temperature_2m','relative_humidity_2m','dew_point_2m',
      'precipitation','rain','snowfall','snow_depth',
      'cloud_cover','cloudcover_low','cloudcover_mid','cloudcover_high',
@@ -3224,7 +3224,7 @@ function renderCloudcoverCompare(){
 // Map tab id → required S.members key (null = always available)
 const TAB_REQUIRES = {
   wind:'windspeed_10m',  // combo tab: also uses winddirection_10m
-  gusts:'windgusts_10m',
+  gusts:'wind_gusts_10m',
   temp:'temperature_2m', dewpoint:'dew_point_2m', humidity:'relative_humidity_2m',
   cloudcover:'cloud_cover',
   visibility:'visibility',
