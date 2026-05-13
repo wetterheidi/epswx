@@ -339,7 +339,6 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(24
         <option value="ncep_gefs_seamless">GFS-ENS (seamless, ≤16d)</option>
         <option value="gem_global">GEPS Kanada (≤16d)</option>
         <option value="ukmo_global_ensemble_20km">UK MetOffice Global 20km (≤7d)</option>
-        <option value="ukmo_uk_ensemble_2km">UK MetOffice UK 2km (≤5d)</option>
       </select>
       <button class="btn btn-cmp" onclick="toggleCompare()" title="Modellvergleich aktivieren" style="white-space:nowrap;padding:5px 10px;font-size:12px">⇄ Vergleich</button>
     </div>
@@ -357,7 +356,6 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(24
       <option value="ncep_gefs_seamless">GFS-ENS (seamless)</option>
       <option value="gem_global">GEPS Kanada</option>
       <option value="ukmo_global_ensemble_20km">UK MetOffice Global 20km</option>
-      <option value="ukmo_uk_ensemble_2km">UK MetOffice UK 2km</option>
     </select>
   </div>
 
@@ -1073,7 +1071,7 @@ const MODEL_DOMAIN = {
   icon_d2_eps:                  {latMin:43, latMax:58,  lonMin:-1,  lonMax:20},
   meteoswiss_icon_ch1_ensemble: {latMin:43, latMax:49,  lonMin:4,   lonMax:13},
   meteoswiss_icon_ch2_ensemble: {latMin:43, latMax:49,  lonMin:4,   lonMax:13},
-  ukmo_uk_ensemble_2km:         {latMin:46, latMax:63,  lonMin:-13, lonMax:10},
+
 };
 function inModelDomain(model,lat,lon){
   const d=MODEL_DOMAIN[model];
