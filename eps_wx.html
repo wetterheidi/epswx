@@ -555,15 +555,15 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(24
     <div id="cc-layers" style="display:none">
       <div class="panels">
         <div class="panel">
-          <div class="ptitle">Tiefe Bewölkung (cloudcover_low)</div>
+          <div class="ptitle">Tiefe Bewölkung (cloud_cover_low)</div>
           <div class="cwrap"><canvas id="c-cc-low"></canvas></div>
         </div>
         <div class="panel">
-          <div class="ptitle">Mittelhohe Bewölkung (cloudcover_mid)</div>
+          <div class="ptitle">Mittelhohe Bewölkung (cloud_cover_mid)</div>
           <div class="cwrap"><canvas id="c-cc-mid"></canvas></div>
         </div>
         <div class="panel">
-          <div class="ptitle">Hohe Bewölkung (cloudcover_high)</div>
+          <div class="ptitle">Hohe Bewölkung (cloud_cover_high)</div>
           <div class="cwrap"><canvas id="c-cc-high"></canvas></div>
         </div>
       </div>
@@ -994,7 +994,7 @@ const AP = {
 // TAB DEFINITIONS
 // ─────────────────────────────────────────────────────────────
 const TABS = {
-  wind:      { apiVar:'windspeed_10m',       unit:'kt',  color:'#3B8BD4', cfgKey:'wind',      dir:'above', yLbl:'Windgeschw. (kt)',     pLbl:'P(Wind ≥ Schwelle)',         sMin:0,   sMax:80,    sStep:1   },
+  wind:      { apiVar:'wind_speed_10m',       unit:'kt',  color:'#3B8BD4', cfgKey:'wind',      dir:'above', yLbl:'Windgeschw. (kt)',     pLbl:'P(Wind ≥ Schwelle)',         sMin:0,   sMax:80,    sStep:1   },
   gusts:     { apiVar:'wind_gusts_10m',       unit:'kt',  color:'#D85A30', cfgKey:'gusts',     dir:'above', yLbl:'Böen (kt)',             pLbl:'P(Böen ≥ Schwelle)',         sMin:0,   sMax:120,   sStep:1   },
   temp:      { apiVar:'temperature_2m',      unit:'°C',  color:'#D85A30', cfgKey:'temp',      dir:'below', yLbl:'Temperatur (°C)',       pLbl:'P(T ≤ Schwelle)',            sMin:-40, sMax:50,    sStep:1   },
   dewpoint:  { apiVar:'dew_point_2m',        unit:'°C',  color:'#1D9E75', cfgKey:'dewpoint',  dir:'below', yLbl:'Taupunkt (°C)',         pLbl:'P(Td ≤ Schwelle)',           sMin:-40, sMax:30,    sStep:1   },
@@ -1209,10 +1209,10 @@ async function resolveLocation(q, silent=false){
 
 async function fetchData(lat,lon,model,days){
   const vars=[
-    'windspeed_10m','wind_gusts_10m','winddirection_10m',
+    'wind_speed_10m','wind_gusts_10m','wind_direction_10m',
     'temperature_2m','relative_humidity_2m','dew_point_2m',
     'precipitation','rain','snowfall','snow_depth',
-    'cloud_cover','cloudcover_low','cloudcover_mid','cloudcover_high',
+    'cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',
     'visibility','cape','weather_code',
   ].join(',');
   const url=`https://ensemble-api.open-meteo.com/v1/ensemble`
@@ -1317,10 +1317,10 @@ async function onFetch(){
     S.members={};
     S.view={start:0,end:null};
 
-    ['windspeed_10m','wind_gusts_10m','winddirection_10m',
+    ['wind_speed_10m','wind_gusts_10m','wind_direction_10m',
      'temperature_2m','relative_humidity_2m','dew_point_2m',
      'precipitation','rain','snowfall','snow_depth',
-     'cloud_cover','cloudcover_low','cloudcover_mid','cloudcover_high',
+     'cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',
      'visibility','cape','weather_code'].forEach(v=>{
        const m=extractMembers(hr,v).map(mem=>mem.slice(0,sliceN));
        if(m.length) S.members[v]=m;
@@ -2025,9 +2025,9 @@ function renderCloudcover(){
   document.getElementById('c-cc-total-prob').onmouseleave=()=>hideCCPanel();
 
   // Layers
-  const layerColors={'cloudcover_low':'#888780','cloudcover_mid':'#5F5E5A','cloudcover_high':'#444441'};
+  const layerColors={'cloud_cover_low':'#888780','cloud_cover_mid':'#5F5E5A','cloud_cover_high':'#444441'};
   const layerIds=['cc-low','cc-mid','cc-high'];
-  const layerVars=['cloudcover_low','cloudcover_mid','cloudcover_high'];
+  const layerVars=['cloud_cover_low','cloud_cover_mid','cloud_cover_high'];
   const hasLayers=layerVars.some(v=>hasData(v));
   document.getElementById('cc-layers').style.display=hasLayers?'block':'none';
 
@@ -2098,7 +2098,7 @@ function onWindThrSlide(v){
 
     // Recompute M2 probs
     const start=S.view.start, end=S.view.end??S.labels.length;
-    const sMs2raw=S.members2['windspeed_10m'];
+    const sMs2raw=S.members2['wind_speed_10m'];
     const sMs2=sMs2raw?.map(m=>m.slice(start,end??undefined));
     if(sMs2?.length&&sMs2.some(m=>m.some(v2=>v2!==null&&isFinite(v2)))){
       const probs2=exceedance(sMs2,v,true);
@@ -2501,8 +2501,8 @@ function renderWindCombo(){
   if(pinBtn){pinBtn.classList.remove('pinned');pinBtn.textContent='📌 Anheften';}
 
   const {labels:vLabels, members:vM}=viewSlice();
-  const sMs=vM['windspeed_10m'];
-  const dMs=vM['winddirection_10m'];
+  const sMs=vM['wind_speed_10m'];
+  const dMs=vM['wind_direction_10m'];
 
   if(!sMs?.length){
     document.getElementById('wind-content').style.display='none';
@@ -2702,10 +2702,10 @@ async function fetchCompare(){
     const sliceN=limitHours?Math.min(limitHours,hr.time.length):hr.time.length;
     S.labels2=hr.time.slice(0,sliceN);
     S.members2={};
-    ['windspeed_10m','wind_gusts_10m','winddirection_10m',
+    ['wind_speed_10m','wind_gusts_10m','wind_direction_10m',
      'temperature_2m','relative_humidity_2m','dew_point_2m',
      'precipitation','rain','snowfall','snow_depth',
-     'cloud_cover','cloudcover_low','cloudcover_mid','cloudcover_high',
+     'cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',
      'visibility','cape','weather_code'].forEach(v=>{
        const m=extractMembers(hr,v).map(mem=>mem.slice(0,sliceN));
        if(m.length) S.members2[v]=m;
@@ -2979,12 +2979,12 @@ function renderWindCompare(){
   // Then overlay direction heatmap (M1 only, M2 if available)
   const tab='wind';
   const {labels:vLabels, members:vM}=viewSlice();
-  const sMs1=vM['windspeed_10m'];
+  const sMs1=vM['wind_speed_10m'];
   if(!sMs1?.length){ renderWindCombo(); return; }
 
   const n=vLabels.length;
   const start=S.view.start, end=S.view.end??S.labels.length;
-  const sMs2raw=S.members2['windspeed_10m'];
+  const sMs2raw=S.members2['wind_speed_10m'];
   const sMs2=sMs2raw?.map(m=>m.slice(start,end??undefined));
   const m2missing=!sMs2?.length || !sMs2.some(m=>m.some(v=>v!==null&&isFinite(v)));
 
@@ -3032,7 +3032,7 @@ function renderWindCompare(){
   setCard(3,'Vergleich',m2missing?`${m2lbl}: keine Daten`:`${m1lbl} vs ${m2lbl}`,'Windgeschwindigkeit');
 
   // Speed plume overlay
-  S_windCtx={sMs:sMs1,dMs:vM['winddirection_10m'],st:st1,probs:probs1,vLabels,thr};
+  S_windCtx={sMs:sMs1,dMs:vM['wind_direction_10m'],st:st1,probs:probs1,vLabels,thr};
   const ds1=plumeDatasets(sMs1,st1,'#3B8BD4',thr);
   const ds2=m2missing?[]:plumeDatasets2(sMs2,st2);
   killChart('wind-speed');
@@ -3055,10 +3055,10 @@ function renderWindCompare(){
   document.getElementById('c-wind-speed').onmouseleave=()=>{hideWindPanel();windCrosshairClear();};
 
   // Wind rose M1
-  renderWindRose(sMs1,vM['winddirection_10m']);
+  renderWindRose(sMs1,vM['wind_direction_10m']);
 
   // Direction heatmap M1 (M2 direction compare is complex, show M1 with badge)
-  if(vM['winddirection_10m']?.length){
+  if(vM['wind_direction_10m']?.length){
     renderWindDir();
   }
 
@@ -3262,7 +3262,7 @@ function renderCloudcoverCompare(){
 // ─────────────────────────────────────────────────────────────
 // Map tab id → required S.members key (null = always available)
 const TAB_REQUIRES = {
-  wind:'windspeed_10m',  // combo tab: also uses winddirection_10m
+  wind:'wind_speed_10m',  // combo tab: also uses wind_direction_10m
   gusts:'wind_gusts_10m',
   temp:'temperature_2m', dewpoint:'dew_point_2m', humidity:'relative_humidity_2m',
   cloudcover:'cloud_cover',
@@ -3279,7 +3279,7 @@ function hasData(varName){
 }
 
 function isTabAvail(t){
-  if(t==='vfr') return hasData('visibility')||hasData('cloudcover_low');
+  if(t==='vfr') return hasData('visibility')||hasData('cloud_cover_low');
   const req=TAB_REQUIRES[t];
   return req===null || hasData(req);
 }
